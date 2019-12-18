@@ -33,25 +33,30 @@ class FlowField:
 
 
 class OfData(FlowField):
-    def __init__(self, path_dir, path_u, path_p):
+    def __init__(self, path_dir, path_u, path_p, path_rho):
         self.path_dir = path_dir
         self.path_u = path_u
         self.path_p = path_p
+        self.path_rho = path_rho
 
         super(OfData, self).__init__()
 
     def _init_field(self):
         self.update_from_file()
 
-    def update_from_file(self, path_u=None, path_p=None):
+    def update_from_file(self, path_u=None, path_p=None, path_rho=None):
         if path_u is None:
             path_u = self.path_u
 
         if path_p is None:
             path_p = self.path_p
 
+        if path_rho is None:
+            path_rho = self.path_rho
+
         u_data = Ofpp.parse_internal_field(self.path_dir + path_u)
         p_data = Ofpp.parse_internal_field(self.path_dir + path_p)
+        rho_data = Ofpp.parse_internal_field(self.path_dir + path_rho)
 
         # For confirmation
         # _mesh = Ofpp.FoamMesh(self.path_dir)
@@ -61,5 +66,5 @@ class OfData(FlowField):
         self.n_val = u_data.shape[1] + 1
         self.n_size = u_data.shape[0]
 
-        self.data = np.hstack((u_data, p_data[:, np.newaxis]))
+        self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
         self.update_state_id()

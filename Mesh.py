@@ -134,8 +134,9 @@ class OfMesh(Mesh):
         self._calc_vec_lr()
 
     def _calc_face_vec(self):
-        ind_a = np.vstack((self.face_nodes[:, 2], self.face_nodes[:, 0]))
-        ind_b = np.vstack((self.face_nodes[:, 3], self.face_nodes[:, 1]))
+        face_nodes = np.array(self.face_nodes)
+        ind_a = np.vstack((face_nodes[:, 2], face_nodes[:, 0]))
+        ind_b = np.vstack((face_nodes[:, 3], face_nodes[:, 1]))
 
         vec_a = np.squeeze(np.diff(self.nodes[ind_a], axis=0))
         vec_b = np.squeeze(np.diff(self.nodes[ind_b], axis=0))
@@ -162,13 +163,13 @@ class OfMesh(Mesh):
         self.face_centers = np.mean(points, axis=1)
 
         # Inner faces
-        self.fc_o = self.face_centers[:self.n_face] - self.centers[self.owner]
-        self.fc_n = self.face_centers[:self.n_face] - self.centers[self.neighbour]
+        self.fc_o = self.face_centers - self.centers[self.owner]
+        self.fc_n = self.face_centers[:self.n_face] - self.centers[self.neighbour[:self.n_face]]
 
         self.dis_fc_o = np.linalg.norm(self.fc_o, axis=1)
         self.dis_fc_n = np.linalg.norm(self.fc_n, axis=1)
 
-        self.dis_fc_inv = 1.0 / (self.dis_fc_o + self.dis_fc_n)
+        self.dis_fc_inv = 1.0 / (self.dis_fc_o[:self.n_face] + self.dis_fc_n)
 
         # Boundary faces
         self.fc_bd = [self.face_centers[ind_f] - self.centers[ind_c]
@@ -177,7 +178,7 @@ class OfMesh(Mesh):
         self.dis_fc_bd_inv = [1.0/(2.0 * dist) for dist in self.dis_fc_bd]
 
     def _calc_vec_lr(self):
-        self.vec_lr = self.centers[self.neighbour] - self.centers[self.owner]
+        self.vec_lr = self.centers[self.neighbour[:self.n_face]] - self.centers[self.owner[:self.n_face]]
         self.lr_inv = 1.0 / np.linalg.norm(self.vec_lr, axis=1)
 
         vec_n_bd = [self.get_bd_geom(i_bd)[1] for i_bd in range(len(self.boundary))]
