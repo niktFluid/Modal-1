@@ -16,6 +16,7 @@ class Mesh:
         self.nodes = dummy
         self.face_nodes = dummy
         self.cell_faces = dummy
+        self.cell_neighbour = dummy
         self.owner = dummy
         self.neighbour = dummy
 
@@ -68,6 +69,9 @@ class Mesh:
     def _init_mesh(self):
         raise NotImplementedError
 
+    def cell_neighbour(self, id_cell):
+        return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
+
     def get_bd_cond(self):
         bd = self.boundary
         bd_types = [bd[i].type for i in range(len(bd))]
@@ -76,21 +80,19 @@ class Mesh:
 
         return bd_types, bd_u, bd_p
 
-    def get_bd_geom(self, i_bd):
+    def get_bd_geom(self, i_bd, inv=False):
         area = self.face_area[self.bd_faces[i_bd]]
-        vec_n = self.face_vec_n[self.bd_faces[i_bd]]
-        vec_t1 = self.face_vec_t1[self.bd_faces[i_bd]]
-        vec_t2 = self.face_vec_t2[self.bd_faces[i_bd]]
+
+        if not inv:
+            vec_n = self.face_vec_n[self.bd_faces[i_bd]]
+            vec_t1 = self.face_vec_t1[self.bd_faces[i_bd]]
+            vec_t2 = self.face_vec_t2[self.bd_faces[i_bd]]
+        else:
+            vec_n = self.face_vec_ni[self.bd_faces[i_bd]]
+            vec_t1 = self.face_vec_t1i[self.bd_faces[i_bd]]
+            vec_t2 = self.face_vec_t2i[self.bd_faces[i_bd]]
 
         return area, vec_n, vec_t1, vec_t2
-
-    def get_bd_geom_inv(self, i_bd):
-        area = self.face_area[self.bd_faces[i_bd]]
-        vec_ni = self.face_vec_ni[self.bd_faces[i_bd]]
-        vec_t1i = self.face_vec_t1i[self.bd_faces[i_bd]]
-        vec_t2i = self.face_vec_t2i[self.bd_faces[i_bd]]
-
-        return area, vec_ni, vec_t1i, vec_t2i
 
     def get_bdfc_vec(self):
         return [self.fc_o[ind] for ind in self.bd_faces]
@@ -112,16 +114,16 @@ class OfMesh(Mesh):
         mesh.read_cell_volumes(self.path_dir + self.path_vols)
 
         self.nodes = mesh.points
-        self.face_nodes = np.array(mesh.faces)
-        self.cell_faces = np.array(mesh.cell_faces)
+        self.face_nodes = mesh.faces
+        self.cell_faces = mesh.cell_faces
 
         self.n_node = len(self.nodes)
         self.n_face = mesh.num_inner_face
         self.n_bdface = mesh.num_face - mesh.num_inner_face
         self.n_cell = len(self.cell_faces)
 
-        self.owner = np.array(mesh.owner)[:self.n_face]
-        self.neighbour = np.array(mesh.neighbour)[:self.n_face]
+        self.owner = mesh.owner
+        self.neighbour = mesh.neighbour
 
         self.centers = mesh.cell_centres
         self.volumes = mesh.cell_volumes
