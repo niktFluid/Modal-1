@@ -69,7 +69,7 @@ class Mesh:
     def _init_mesh(self):
         raise NotImplementedError
 
-    def cell_neighbour(self, id_cell):
+    def cell_neighbours(self, id_cell):
         return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
 
     def get_bd_cond(self):
