@@ -8,7 +8,7 @@ class FlowField:
 
         self.state_id = 0
         self.n_val = 0
-        self.n_size = 0
+        self.n_cell = 0
         self.data = dummy
 
         self._init_field()
@@ -22,8 +22,11 @@ class FlowField:
     def update_from_file(self, *args, **kwargs):
         raise NotImplementedError
 
-    def get_data(self):
-        return self.data
+    # def get_data(self):
+    #     return self.data
+
+    def get(self, id_cell, id_val):
+        return self.data[id_cell, id_val]
 
     def get_interface_data(self, bd_cells):
         return [self.data[ind] for ind in bd_cells]
@@ -64,7 +67,7 @@ class OfData(FlowField):
         # u_data = _mesh.cell_centres
 
         self.n_val = u_data.shape[1] + 1
-        self.n_size = u_data.shape[0]
+        self.n_cell = u_data.shape[0]
 
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
         self.update_state_id()

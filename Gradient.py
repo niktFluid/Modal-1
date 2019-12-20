@@ -160,7 +160,7 @@ class GradientData:
         owner = self.mesh.owner
         neighbour = self.mesh.neighbour
 
-        area = self.mesh.face_area[:n_face]
+        # area = self.mesh.face_area[:n_face]
         dis_o = self.mesh.dis_fc_o
         dis_n = self.mesh.dis_fc_n
         dis_inv = self.mesh.dis_fc_inv
