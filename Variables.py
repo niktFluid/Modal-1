@@ -40,7 +40,7 @@ class Variables:
 
         if self._sub_list is not None:
             for sub_variable, ref_cell in itertools.product(self._sub_list, my_ref_cells):
-                ref_cell_list += sub_variable.return_ref_cells()
+                ref_cell_list += sub_variable.return_ref_cells(ref_cell)
 
         self._leave_list = list(set(my_ref_cells + ref_cell_list))
 
@@ -89,8 +89,10 @@ class Gradient(Variables):
         self._faces = None
 
     def return_ref_cells(self, id_cell):
-        self._nb_cells = self.mesh.cell_neighbours(id_cell)
-        return self._nb_cells
+        self._nb_cells = [id_cell] + self.mesh.cell_neighbours(id_cell)
+        ref_cells = [i_cell for i_cell in self._nb_cells if i_cell >= 0]
+
+        return list(set(ref_cells))
 
     def _equation(self, id_cell, i_val):
         self._faces = self.mesh.cell_faces[id_cell]
