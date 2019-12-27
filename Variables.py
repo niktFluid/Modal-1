@@ -1,6 +1,6 @@
 import itertools
 import numpy as np
-# from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix
 
 
 class Variables:
@@ -49,7 +49,7 @@ class Variables:
 
         def iterator(id_val, ref_cell, ref_val):
             self._set_place_holder(ref_cell, ref_val)
-            x = self._equation(id_cell, id_val)
+            x = self.equation(id_cell, id_val)
             self._set_place_holder(ref_cell, ref_val, init=True)
 
             return x
@@ -66,8 +66,11 @@ class Variables:
 
         self.ph[id_cell, i_val] = x
 
-    def _equation(self, id_cell, i_val):
+    def equation(self, id_cell, i_val):
         raise NotImplementedError
+
+    def _boundary_basic(self):
+        pass
 
 
 class Identity(Variables):
@@ -77,7 +80,7 @@ class Identity(Variables):
     def return_ref_cells(self, id_cell):
         return [id_cell]
 
-    def _equation(self, id_cell, i_val):
+    def equation(self, id_cell, i_val):
         return self.ph(id_cell, i_val)
 
 
@@ -94,15 +97,12 @@ class Gradient(Variables):
 
         return list(set(ref_cells))
 
-    def _equation(self, id_cell, i_val):
+    def equation(self, id_cell, i_val):
         self._faces = self.mesh.cell_faces[id_cell]
 
         grad = 0.0
 
         return grad
-
-    def _boundary(self):
-        pass
 
     def _set_mat(self, id_cell):
         pass
