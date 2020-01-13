@@ -4,25 +4,29 @@ from scipy.sparse import csr_matrix
 
 
 class Variables:
-    def __init__(self, placeholder, mesh, flow_data, sub_list=None):
-        self.ph = placeholder
+    def __init__(self, mesh, flow_data, sub_list=None):
         self.mesh = mesh
         self.data = flow_data
+
+        self.n_cell = self.mesh.n_cell
         self.n_val = flow_data.n_val
 
         self._sub_list = sub_list
         self._leave_list = []
 
-        self._check_placeholder()
         if self._sub_list is not None:
             self._check_sub_list()
 
-    def _check_placeholder(self):
-        n_cell = self.mesh.n_cell
-        n_val = self.n_val
+        # Arrays for compiling the sparse matrix
+        self._ph_data = np.array([1.0], dtype=np.float64)
+        self._ph_indices = np.zeros(1, dtype=np.int32)
+        self._ph_indptr = np.ones(self.n_cell+1, dtype=np.int32)
+        self._ph = csr_matrix([0.0])
 
-        if self.ph.shape != (n_cell, n_val):
-            raise Exception
+        self._ph_indptr[0] = 0
+        ph_filler = (self._ph_data, self._ph_indices, self._ph_indptr)
+
+        self._ph = csr_matrix(ph_filler, shape=(self.n_cell, self.n_val))
 
     def _check_sub_list(self):
         for sub_variable in self._sub_list:
@@ -50,7 +54,6 @@ class Variables:
         def iterator(id_val, ref_cell, ref_val):
             self._set_place_holder(ref_cell, ref_val)
             x = self.equation(id_cell, id_val)
-            self._set_place_holder(ref_cell, ref_val, init=True)
 
             return x
 
@@ -58,13 +61,18 @@ class Variables:
                 for id_val, ref_cell, ref_val
                 in itertools.product(range(self.n_val), self._leave_list, range(self.n_val))]
 
-    def _set_place_holder(self, id_cell, i_val, init=False):
-        if init:
-            x = 0.0
-        else:
-            x = 1.0
+    def _set_place_holder(self, id_cell, i_val):
+        n_cell = self.n_cell
+        n_val = self.n_val
 
-        self.ph[id_cell, i_val] = x
+        data = self._ph_data
+        indices = self._ph_indices
+        indptr = self._ph_indptr
+
+        indices[0] = i_val
+        indptr[0:id_cell+1] = 0
+
+        self._ph = csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
 
     def equation(self, id_cell, i_val):
         raise NotImplementedError
@@ -74,19 +82,19 @@ class Variables:
 
 
 class Identity(Variables):
-    def __init__(self, placeholder, mesh, flow_data):
-        super(Identity, self).__init__(placeholder, mesh, flow_data, sub_list=None)
+    def __init__(self, mesh, flow_data):
+        super(Identity, self).__init__(mesh, flow_data, sub_list=None)
 
     def return_ref_cells(self, id_cell):
         return [id_cell]
 
     def equation(self, id_cell, i_val):
-        return self.ph(id_cell, i_val)
+        return self._ph[id_cell, i_val]
 
 
 class Gradient(Variables):
-    def __init__(self, placeholder, mesh, flow_data):
-        super(Gradient, self).__init__(placeholder, mesh, flow_data, sub_list=None)
+    def __init__(self, mesh, flow_data):
+        super(Gradient, self).__init__(mesh, flow_data, sub_list=None)
 
         self._nb_cells = None
         self._faces = None
