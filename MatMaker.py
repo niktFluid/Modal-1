@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import lil_matrix
+from scipy.sparse import lil_matrix, csr_matrix
 
 from Variables import Variables
 from Variables import Identity
@@ -15,7 +15,7 @@ class MatMaker:
         self.flow_data = flow_data
 
         self.target = target
-        self.placeholder = self._set_matrix()
+        self._check_target()
 
         self.operator = self._set_matrix()
 
@@ -27,21 +27,34 @@ class MatMaker:
         return lil_matrix((self.n_size, self.n_size), dtype=np.float64)
 
     def get_mat(self):
-        pass
+        for id_cell in range(self.n_cell):
+            self._set_mat_for_cell(id_cell)
+
+        return csr_matrix(self.operator)
 
     def _set_mat_for_cell(self, id_cell):
-        pass
+        target = self.target
+
+        val_list = target.calc(id_cell)
+
+        for id_val, ref_cell, ref_val, val in val_list:
+            i_row = self._serializer(id_cell, id_val)
+            i_col = self._serializer(ref_cell, ref_val)
+
+            self.operator[i_row, i_col] = val
+
+    def _serializer(self, id_cell, id_val):
+        return id_cell * self.n_val + id_val
 
 
 class TargetEq(Variables):
-    def __init__(self, placeholder, mesh, flow_data):
-        sub_list = [Identity(placeholder, mesh, flow_data)]
-
-        super(TargetEq, self).__init__(placeholder, mesh, flow_data, sub_list=sub_list)
+    def __init__(self, mesh, flow_data):
+        sub_list = [Identity(mesh, flow_data)]
+        super(TargetEq, self).__init__(mesh, flow_data, sub_list=sub_list)
 
     def return_ref_cells(self, id_cell):
         idx = self._sub_list[0]
-        return idx.return_ref_cells
+        return idx.return_ref_cells(id_cell)
 
     def equation(self, id_cell, i_val):
         idx = self._sub_list[0]

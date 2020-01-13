@@ -53,9 +53,7 @@ class Variables:
 
         def iterator(id_val, ref_cell, ref_val):
             self._set_place_holder(ref_cell, ref_val)
-            x = self.equation(id_cell, id_val)
-
-            return x
+            return self.equation(id_cell, id_val)
 
         return [(id_val, ref_cell, ref_val, iterator(id_val, ref_cell, ref_val))
                 for id_val, ref_cell, ref_val
