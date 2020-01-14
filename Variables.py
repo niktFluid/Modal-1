@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 
 
 class Variables:
@@ -30,61 +31,11 @@ class Variables:
 
         return self.leave_list
 
-    def formula(self, ph, id_cell, id_val):
+    def formula(self, ph, id_cell, id_val, **kwargs):
         raise NotImplementedError
 
     def return_ref_cells(self, id_cell):
         raise NotImplementedError
 
     def _boundary_basic(self):
-        pass
-
-
-class Identity(Variables):
-    def __init__(self, mesh, flow_data, sub_list=None):
-        super(Identity, self).__init__(mesh, flow_data, sub_list)
-
-    def return_ref_cells(self, id_cell):
-        return [id_cell]
-
-    def formula(self, ph, id_cell, id_val):
-        return ph[id_cell, id_val]
-
-
-class Gradient(Variables):
-    def __init__(self, mesh, flow_data, sub_list=None):
-        super(Gradient, self).__init__(mesh, flow_data, sub_list)
-
-        self._nb_cells = None
-        self._faces = None
-
-    def return_ref_cells(self, id_cell):
-        self._nb_cells = [id_cell] + self.mesh.cell_neighbours(id_cell)
-        ref_cells = [i_cell for i_cell in self._nb_cells if i_cell >= 0]
-
-        return list(set(ref_cells))
-
-    def formula(self, ph, id_cell, id_val):
-        self._faces = self.mesh.cell_faces[id_cell]
-
-        grad = 0.0
-
-        return grad
-
-    def _set_mat(self, id_cell):
-        pass
-
-    def _set_rhs(self):
-        pass
-
-    def _get_val_diff(self):
-        pass
-
-    def _get_pos_diff(self):
-        pass
-
-    def _bd_val_diff(self):
-        pass
-
-    def _bd_pos_diff(self):
         pass

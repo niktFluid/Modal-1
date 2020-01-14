@@ -7,13 +7,13 @@ from Variables import Identity
 
 
 class MatMaker:
-    def __init__(self, mesh, flow_data, target):
-        self.n_cell = mesh.n_cell
-        self.n_val = flow_data.n_val
+    def __init__(self, n_cell, n_val, target):
+        self.n_cell = n_cell
+        self.n_val = n_val
         self.n_size = self.n_cell * self.n_val
 
-        self.mesh = mesh
-        self.flow_data = flow_data
+        # self.mesh = mesh
+        # self.flow_data = flow_data
 
         self.variables = target
         # self._check_target()
@@ -51,7 +51,6 @@ class MatMaker:
         for id_val, ref_cell, ref_val, val in val_list:
             i_row = self._serializer(id_cell, id_val)
             i_col = self._serializer(ref_cell, ref_val)
-
             self.operator[i_row, i_col] = val
 
     def _serializer(self, id_cell, id_val):
@@ -80,11 +79,10 @@ class MatMaker:
         indptr = self._ph_indptr
 
         indices[0] = i_val
-        indptr[:] = 1
         indptr[0:id_cell+1] = 0
+        indptr[id_cell+1:] = 1
 
         self._ph = csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
-        # print(self._ph[id_cell, i_val], self._ph[id_cell+1, i_val])
 
 
 class TargetEq(Variables):
