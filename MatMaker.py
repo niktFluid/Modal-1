@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 from scipy.sparse import lil_matrix, csr_matrix
 
@@ -7,35 +8,45 @@ from Variables import Identity
 
 class MatMaker:
     def __init__(self, mesh, flow_data, target):
-        self.n_cell = self.mesh.n_cell
-        self.n_val = self.flow_data.n_val
+        self.n_cell = mesh.n_cell
+        self.n_val = flow_data.n_val
         self.n_size = self.n_cell * self.n_val
 
         self.mesh = mesh
         self.flow_data = flow_data
 
-        self.target = target
-        self._check_target()
+        self.variables = target
+        # self._check_target()
 
         self.operator = self._set_matrix()
 
+        # Arrays for compiling the sparse matrix, PlaceHolder
+        self._ph_data = np.array([1.0], dtype=np.float64)
+        self._ph_indices = np.zeros(1, dtype=np.int32)
+        self._ph_indptr = np.ones(self.n_cell+1, dtype=np.int32)
+
+        self._ph_indptr[0] = 0
+        ph_filler = (self._ph_data, self._ph_indices, self._ph_indptr)
+
+        self._ph = csr_matrix(ph_filler, shape=(self.n_cell, self.n_val))
+
     def _check_target(self):
-        if not issubclass(self.target, Variables):
+        if not issubclass(self.variables, Variables):
             raise TypeError
 
     def _set_matrix(self):
         return lil_matrix((self.n_size, self.n_size), dtype=np.float64)
 
     def get_mat(self):
+        # for id_cell in range(5):
         for id_cell in range(self.n_cell):
             self._set_mat_for_cell(id_cell)
 
         return csr_matrix(self.operator)
 
     def _set_mat_for_cell(self, id_cell):
-        target = self.target
-
-        val_list = target.calc(id_cell)
+        val_list = self._calc_sub(id_cell)
+        # print(val_list)
 
         for id_val, ref_cell, ref_val, val in val_list:
             i_row = self._serializer(id_cell, id_val)
@@ -45,6 +56,35 @@ class MatMaker:
 
     def _serializer(self, id_cell, id_val):
         return id_cell * self.n_val + id_val
+
+    def _calc_sub(self, id_cell):
+        variables = self.variables
+        ref_cells = variables.get_leaves(id_cell)
+
+        def iterator(id_val, ref_cell, ref_val):
+            self._set_place_holder(ref_cell, ref_val)
+            val = variables.formula(self._ph, id_cell, id_val)
+            # print(id_cell, id_val, ref_cell, ref_val, self._ph[id_cell, id_val], val)
+            return val
+
+        return [(id_val, ref_cell, ref_val, iterator(id_val, ref_cell, ref_val))
+                for id_val, ref_cell, ref_val
+                in itertools.product(range(self.n_val), ref_cells, range(self.n_val))]
+
+    def _set_place_holder(self, id_cell, i_val):
+        n_cell = self.n_cell
+        n_val = self.n_val
+
+        data = self._ph_data
+        indices = self._ph_indices
+        indptr = self._ph_indptr
+
+        indices[0] = i_val
+        indptr[:] = 1
+        indptr[0:id_cell+1] = 0
+
+        self._ph = csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
+        # print(self._ph[id_cell, i_val], self._ph[id_cell+1, i_val])
 
 
 class TargetEq(Variables):
@@ -56,6 +96,6 @@ class TargetEq(Variables):
         idx = self._sub_list[0]
         return idx.return_ref_cells(id_cell)
 
-    def equation(self, id_cell, i_val):
+    def formula(self, ph, id_cell, id_val):
         idx = self._sub_list[0]
-        return idx.equation(id_cell, i_val)
+        return idx.formula(ph, id_cell, id_val)
