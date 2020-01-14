@@ -3,7 +3,7 @@ import numpy as np
 from scipy.sparse import lil_matrix, csr_matrix
 
 from Variables import Variables
-from Variables import Identity
+from Functions.Identity import Identity
 
 
 class MatMaker:
@@ -94,6 +94,6 @@ class TargetEq(Variables):
         idx = self._sub_list[0]
         return idx.return_ref_cells(id_cell)
 
-    def formula(self, ph, id_cell, id_val):
+    def formula(self, ph, id_cell, id_val, **kwargs):
         idx = self._sub_list[0]
         return idx.formula(ph, id_cell, id_val)

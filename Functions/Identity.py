@@ -2,7 +2,7 @@ from Variables import Variables
 
 
 class Identity(Variables):
-    # Identity function
+    # Identity.py function
     def __init__(self, mesh, flow_data, sub_list=None):
         super(Identity, self).__init__(mesh, flow_data, sub_list)
 
