@@ -5,7 +5,7 @@ import numpy as np
 from scipy.sparse import lil_matrix, csr_matrix
 
 from Variables import Variables
-from Functions.Identity import Identity
+# from Functions.Identity import Identity
 
 
 class MatMaker:
@@ -22,10 +22,7 @@ class MatMaker:
 
         self.operator = self._set_matrix()
 
-        # Arrays for compiling the sparse matrix, PlaceHolder, ph
-        self._ph_data = np.array([1.0], dtype=np.float64)
-        self._ph_indices = np.zeros(1, dtype=np.int32)
-        self._ph_indptr = np.ones(self.n_cell+1, dtype=np.int32)
+        self._ph = PlaceHolder(n_cell, n_val)
 
     def _check_target(self):
         if not issubclass(self.variables, Variables):
@@ -73,40 +70,45 @@ class MatMaker:
         ref_cells = variables.get_leaves(id_cell)
         # print(ref_cells)
 
-        def iterator(id_val, ref_cell, ref_val):
-            ph = self._set_place_holder(ref_cell, ref_val)
-            val = variables.formula(ph, id_cell, id_val)
-            # print(id_cell, id_val, ref_cell, ref_val, self._ph[id_cell, id_val], val)
+        def iterator(i_val, r_cell, r_val):
+            # ph = self._set_place_holder(r_cell, r_val)
+            self._ph.set_ph(r_cell, r_val)
+            val = variables.formula(self._ph, id_cell, i_val)
             return val
 
-        return [(id_val, ref_cell, ref_val, iterator(id_val, ref_cell, ref_val))
-                for id_val, ref_cell, ref_val
-                in itertools.product(range(self.n_val), ref_cells, range(self.n_val))]
+        val_list = []
+        for id_val, ref_cell, ref_val in itertools.product(range(self.n_val), ref_cells, range(self.n_val)):
+            val_list.append((id_val, ref_cell, ref_val, iterator(id_val, ref_cell, ref_val)))
 
-    def _set_place_holder(self, id_cell, i_val):
-        n_cell = self.n_cell
-        n_val = self.n_val
-
-        data = self._ph_data
-        indices = self._ph_indices
-        indptr = self._ph_indptr
-
-        indices[0] = i_val
-        indptr[0:id_cell+1] = 0
-        indptr[id_cell+1:] = 1
-
-        return csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
+        return val_list
 
 
-class TargetEq(Variables):
-    def __init__(self, mesh, flow_data):
-        sub_list = [Identity(mesh, flow_data)]
-        super(TargetEq, self).__init__(mesh, flow_data, sub_list=sub_list)
+class PlaceHolder:
+    def __init__(self, n_cell, n_val):
+        self.n_cell = n_cell
+        self.n_val = n_val
 
-    def return_ref_cells(self, id_cell):
-        idx = self._sub_list[0]
-        return idx.return_ref_cells(id_cell)
+        self.i_cell = 0
+        self.i_val = 0
 
-    def formula(self, ph, id_cell, id_val, **kwargs):
-        idx = self._sub_list[0]
-        return idx.formula(ph, id_cell, id_val)
+    def shape(self):
+        return self.n_cell, self.n_val
+
+    def set_ph(self, i_cell, i_val):
+        self.i_cell = i_cell
+        self.i_val = i_val
+
+    def __getitem__(self, x):
+        if len(x) != 2:
+            raise TypeError
+
+        # if isinstance(x, tuple):
+        i_cell = x[0]
+        i_val = x[1]
+
+        if i_cell == self.i_cell and i_val == self.i_val:
+            return 1.0
+        else:
+            return 0.0
+        # elif isinstance(x, slice):
+        #     pass

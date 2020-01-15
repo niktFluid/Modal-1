@@ -2,7 +2,7 @@ from Mesh import OfMesh
 from FlowData import OfData
 
 from MatMaker import MatMaker
-from MatMaker import TargetEq
+# from MatMaker import TargetEq
 
 from BoundaryCondition import BoundaryCondition as BDcond
 from Functions.Gradient import Gradient

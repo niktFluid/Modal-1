@@ -67,7 +67,7 @@ class Gradient(Variables):
             vec_n = face_vec_n[id_k_face]
             dist_fc = np.linalg.norm(face_centers[id_k_face] - centers[id_0])
 
-            vec_lr = 2.0 * vec_n * np.tile(dist_fc, 3)
+            vec_lr = 2.0 * dist_fc * vec_n
 
         return vec_lr
 
@@ -80,7 +80,7 @@ class Gradient(Variables):
             vec_lr = self._get_pos_diff(id_cell, id_nb, id_face)
             val_diff = self._get_val_diff(data, id_cell, id_nb, id_face, id_val)
 
-            rhs_vec += vec_lr * np.tile(val_diff, 3)
+            rhs_vec += val_diff * vec_lr
 
         return rhs_vec
 
@@ -91,13 +91,21 @@ class Gradient(Variables):
 
             val_diff = val_k - val_0
         else:  # For boundary cells
-            if isinstance(data, csr_matrix):  # Place holder
-                val_vec = np.squeeze(data[id_0].toarray())
-            else:
-                val_vec = data[id_0]
+            # if isinstance(data, csr_matrix):  # Place holder
+            #     val_vec = np.squeeze(data[id_0].toarray())
+            #    val_vec = np.zeros(5, dtype=np.float64)
+            #   val_vec[id_val] = data[id_0, id_val]
+            # else:
+            #     val_vec = data[id_0]
+
+            rho = data[id_0, 0]
+            u_vel = data[id_0, 1]
+            v_vel = data[id_0, 2]
+            w_vel = data[id_0, 3]
+            pres = data[id_0, 4]
+            val_vec = np.array((rho, u_vel, v_vel, w_vel, pres))
 
             val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_k)
-
             val_diff = val_bd[id_val] - val_vec[id_val]
 
         return val_diff
