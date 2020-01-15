@@ -97,6 +97,19 @@ class Mesh:
     def get_bdfc_vec(self):
         return [self.fc_o[ind] for ind in self.bd_faces]
 
+    def get_bd_id(self, id_face):
+        id_bd = None
+
+        for i_bd, bd_data in enumerate(self.boundary):
+            i_start = bd_data.i_start
+            num = bd_data.num
+
+            if i_start <= id_face < i_start + num:
+                id_bd = i_bd
+                break
+
+        return id_bd
+
 
 class OfMesh(Mesh):
     def __init__(self, path_dir, path_centres, path_vols, path_bd_u, path_bd_p):

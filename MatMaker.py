@@ -20,15 +20,10 @@ class MatMaker:
 
         self.operator = self._set_matrix()
 
-        # Arrays for compiling the sparse matrix, PlaceHolder
+        # Arrays for compiling the sparse matrix, PlaceHolder, ph
         self._ph_data = np.array([1.0], dtype=np.float64)
         self._ph_indices = np.zeros(1, dtype=np.int32)
         self._ph_indptr = np.ones(self.n_cell+1, dtype=np.int32)
-
-        self._ph_indptr[0] = 0
-        ph_filler = (self._ph_data, self._ph_indices, self._ph_indptr)
-
-        self._ph = csr_matrix(ph_filler, shape=(self.n_cell, self.n_val))
 
     def _check_target(self):
         if not issubclass(self.variables, Variables):
@@ -61,8 +56,8 @@ class MatMaker:
         ref_cells = variables.get_leaves(id_cell)
 
         def iterator(id_val, ref_cell, ref_val):
-            self._set_place_holder(ref_cell, ref_val)
-            val = variables.formula(self._ph, id_cell, id_val)
+            ph = self._set_place_holder(ref_cell, ref_val)
+            val = variables.formula(ph, id_cell, id_val)
             # print(id_cell, id_val, ref_cell, ref_val, self._ph[id_cell, id_val], val)
             return val
 
@@ -82,7 +77,7 @@ class MatMaker:
         indptr[0:id_cell+1] = 0
         indptr[id_cell+1:] = 1
 
-        self._ph = csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
+        return csr_matrix((data, indices, indptr), shape=(n_cell, n_val))
 
 
 class TargetEq(Variables):
