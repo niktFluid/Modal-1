@@ -7,7 +7,7 @@ class FlowField:
         dummy = np.empty(0)
 
         self.state_id = 0
-        self.n_val = 0
+        self.n_val = 5  # density, velocity, pressure
         self.n_cell = 0
         self.data = dummy
 
@@ -66,7 +66,7 @@ class OfData(FlowField):
         # _mesh.read_cell_centres(self.path_dir + '0.5/C')
         # u_data = _mesh.cell_centres
 
-        self.n_val = u_data.shape[1] + 1
+        # self.n_val = u_data.shape[1] + 1
         self.n_cell = u_data.shape[0]
 
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))

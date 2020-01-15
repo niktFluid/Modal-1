@@ -1,16 +1,17 @@
-from itertools import product
-
 import numpy as np
 from scipy import linalg
+from scipy.sparse import csr_matrix
 
 from Variables import Variables
 
 
 class Gradient(Variables):
-    def __init__(self, mesh, flow_data, bd_cond, sub_list=None):
+    def __init__(self, mesh, flow_data, bd_cond, sub_list=None, axis=None):
         super(Gradient, self).__init__(mesh, flow_data, sub_list)
 
         self.bd_cond = bd_cond
+
+        self.axis = axis
 
         # Least Square matrix
         n_cell = mesh.n_cell
@@ -26,10 +27,11 @@ class Gradient(Variables):
 
     def formula(self, data, id_cell, id_val, axis=None):
         vec_rhs = self._set_rhs(data, id_cell, id_val)
-        grad = linalg.lu_solve(self.matLU1[id_cell], self.matLU2[id_cell], vec_rhs)
+        grad = linalg.lu_solve((self.matLU1[id_cell], self.matLU2[id_cell]), vec_rhs)
+        # print(grad)
 
-        if axis is not None:
-            return grad[axis]
+        if self.axis is not None:
+            return grad[self.axis]
         else:
             return grad
 
@@ -49,9 +51,7 @@ class Gradient(Variables):
         mat_cell = np.zeros((3, 3), dtype=np.float64)
         for id_nb, id_face in zip(nb_cells, faces):
             vec_lr = self._get_pos_diff(id_cell, id_nb, id_face)
-
-            for axis_0, axis_k in product(range(3), range(3)):
-                mat_cell += vec_lr[axis_0] * vec_lr[axis_k]
+            mat_cell += vec_lr.reshape(3, 1) @ vec_lr.reshape(1, 3)
 
         return mat_cell
 
@@ -91,10 +91,12 @@ class Gradient(Variables):
 
             val_diff = val_k - val_0
         else:  # For boundary cells
-            val_vec = data[id_0]
-            id_bd = id_k
+            if isinstance(data, csr_matrix):  # Place holder
+                val_vec = np.squeeze(data[id_0].toarray())
+            else:
+                val_vec = data[id_0]
 
-            val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_bd)
+            val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_k)
 
             val_diff = val_bd[id_val] - val_vec[id_val]
 

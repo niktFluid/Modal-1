@@ -1,3 +1,5 @@
+import time
+
 import itertools
 import numpy as np
 from scipy.sparse import lil_matrix, csr_matrix
@@ -33,11 +35,26 @@ class MatMaker:
         return lil_matrix((self.n_size, self.n_size), dtype=np.float64)
 
     def get_mat(self):
+        t_start = time.time()
+
         # for id_cell in range(5):
         for id_cell in range(self.n_cell):
             self._set_mat_for_cell(id_cell)
+            self._print_progress(id_cell, t_start)
 
+        t_end = time.time() - t_start
+        print('Done. Elapsed time: {:.0f}'.format(t_end))
         return csr_matrix(self.operator)
+
+    def _print_progress(self, id_cell, t_start):
+        interval = 10
+
+        prog_0 = int(100.0 * (id_cell - 1) / self.n_cell)
+        prog_1 = int(100.0 * id_cell / self.n_cell)
+
+        if prog_0 % interval == interval - 1 and prog_1 % interval == 0:
+            t_elapse = time.time() - t_start
+            print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec]')
 
     def _set_mat_for_cell(self, id_cell):
         val_list = self._calc_sub(id_cell)
@@ -54,6 +71,7 @@ class MatMaker:
     def _calc_sub(self, id_cell):
         variables = self.variables
         ref_cells = variables.get_leaves(id_cell)
+        # print(ref_cells)
 
         def iterator(id_val, ref_cell, ref_val):
             ph = self._set_place_holder(ref_cell, ref_val)

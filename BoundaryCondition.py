@@ -9,7 +9,7 @@ class BoundaryCondition:
         self._id_moving_wall = -10
         self._id_empty = -12
 
-    def get_bd(self, val_vec, id_face, id_bd):
+    def get_bd_val(self, val_vec, id_face, id_bd):
         vec_loc = self._conv_vec(val_vec, id_face, conv_type='G2L')
 
         bd_func = self._select_bd_func(id_bd)
@@ -34,7 +34,7 @@ class BoundaryCondition:
         elif conv_type == 'L2G':
             vec_n = self.mesh.face_vec_ni[id_face]
             vec_t1 = self.mesh.face_vec_t1i[id_face]
-            vec_t2 = self.mesh.face_vec_t29[id_face]
+            vec_t2 = self.mesh.face_vec_t2i[id_face]
         else:
             raise TypeError
 
@@ -47,6 +47,7 @@ class BoundaryCondition:
 
     @staticmethod
     def _split_vec(val_vec):
+        # print(val_vec)
         return val_vec[0], val_vec[1:4], val_vec[4]
 
     def _bd_symmetry(self, val_vec, _):
