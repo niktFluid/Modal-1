@@ -1,5 +1,5 @@
 import itertools
-import numpy as np
+# import numpy as np
 
 
 class Variables:
@@ -10,14 +10,6 @@ class Variables:
         self.leave_list = None
 
         self._sub_list = sub_list
-
-        # if self._sub_list is not None:
-        #     self._check_sub_list()
-
-    # def _check_sub_list(self):
-    #     for sub_variable in self._sub_list:
-    #         if not issubclass(sub_variable, Variables):
-    #             raise TypeError
 
     def get_leaves(self, id_cell):
         my_ref_cells = self.return_ref_cells(id_cell)

@@ -1,6 +1,7 @@
+import math
 import numpy as np
 from scipy import linalg
-from scipy.sparse import csr_matrix
+# from scipy.sparse import csr_matrix
 
 from Variables import Variables
 
@@ -12,6 +13,8 @@ class Gradient(Variables):
         self.bd_cond = bd_cond
 
         self.axis = axis
+
+        self._val_vec = np.empty(5, dtype=np.float64)
 
         # Least Square matrix
         n_cell = mesh.n_cell
@@ -64,10 +67,11 @@ class Gradient(Variables):
             face_vec_n = self.mesh.face_vec_n
             face_centers = self.mesh.face_centers
 
-            vec_n = face_vec_n[id_k_face]
-            dist_fc = np.linalg.norm(face_centers[id_k_face] - centers[id_0])
+            vec_fc = face_centers[id_k_face] - centers[id_0]
+            dist_fc = math.sqrt(vec_fc[0] * vec_fc[0] + vec_fc[1] * vec_fc[1] + vec_fc[2] * vec_fc[2])
+            # dist_fc = np.linalg.norm(face_centers[id_k_face] - centers[id_0])
 
-            vec_lr = 2.0 * dist_fc * vec_n
+            vec_lr = 2.0 * dist_fc * face_vec_n[id_k_face]
 
         return vec_lr
 
@@ -91,19 +95,13 @@ class Gradient(Variables):
 
             val_diff = val_k - val_0
         else:  # For boundary cells
-            # if isinstance(data, csr_matrix):  # Place holder
-            #     val_vec = np.squeeze(data[id_0].toarray())
-            #    val_vec = np.zeros(5, dtype=np.float64)
-            #   val_vec[id_val] = data[id_0, id_val]
-            # else:
-            #     val_vec = data[id_0]
+            val_vec = self._val_vec
 
-            rho = data[id_0, 0]
-            u_vel = data[id_0, 1]
-            v_vel = data[id_0, 2]
-            w_vel = data[id_0, 3]
-            pres = data[id_0, 4]
-            val_vec = np.array((rho, u_vel, v_vel, w_vel, pres))
+            val_vec[0] = data[id_0, 0]
+            val_vec[1] = data[id_0, 1]
+            val_vec[2] = data[id_0, 2]
+            val_vec[3] = data[id_0, 3]
+            val_vec[4] = data[id_0, 4]
 
             val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_k)
             val_diff = val_bd[id_val] - val_vec[id_val]

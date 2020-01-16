@@ -99,16 +99,12 @@ class PlaceHolder:
         self.i_val = i_val
 
     def __getitem__(self, x):
-        if len(x) != 2:
-            raise TypeError
+        # if len(x) != 2:
+        #     raise TypeError
 
         # if isinstance(x, tuple):
         i_cell = x[0]
         i_val = x[1]
 
-        if i_cell == self.i_cell and i_val == self.i_val:
-            return 1.0
-        else:
-            return 0.0
-        # elif isinstance(x, slice):
-        #     pass
+        val = i_cell == self.i_cell and i_val == self.i_val
+        return float(val)
