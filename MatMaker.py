@@ -12,7 +12,7 @@ class MatMaker:
     def __init__(self, n_cell, n_val, target):
         self.n_cell = n_cell
         self.n_val = n_val
-        self.n_size = self.n_cell * self.n_val
+        self.n_size = n_cell * n_val
 
         # self.mesh = mesh
         # self.flow_data = flow_data
@@ -88,8 +88,8 @@ class PlaceHolder:
         self.n_cell = n_cell
         self.n_val = n_val
 
-        self.i_cell = 0
-        self.i_val = 0
+        self.i_cell = -1
+        self.i_val = -1
 
     def shape(self):
         return self.n_cell, self.n_val
@@ -99,12 +99,4 @@ class PlaceHolder:
         self.i_val = i_val
 
     def __getitem__(self, x):
-        # if len(x) != 2:
-        #     raise TypeError
-
-        # if isinstance(x, tuple):
-        i_cell = x[0]
-        i_val = x[1]
-
-        val = i_cell == self.i_cell and i_val == self.i_val
-        return float(val)
+        return float(x[0] == self.i_cell and x[1] == self.i_val)
