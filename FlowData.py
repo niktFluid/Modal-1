@@ -41,14 +41,11 @@ class FlowField:
                 for w_list in self._make_write_list(w_data):
                     file_obj.writelines(list(map(conv_str, w_list)) + ['\n'])
 
-            write_data(nodes[:, 0])
-            write_data(nodes[:, 1])
-            write_data(nodes[:, 2])
-            write_data(data[:, 0])
-            write_data(data[:, 1])
-            write_data(data[:, 2])
-            write_data(data[:, 3])
-            write_data(data[:, 4])
+            for ind in range(3):
+                write_data(nodes[:, ind])
+
+            for ind in range(5):
+                write_data(data[:, ind])
 
             for connectivity in self._make_connectivity(mesh):
                 c_list = list(map(conv_str, connectivity))
@@ -163,5 +160,4 @@ class OfData(FlowField):
 
             def add_1(x):
                 return x + 1
-
             yield list(map(add_1, face_nodes_0)) + list(map(add_1, face_nodes_op))
