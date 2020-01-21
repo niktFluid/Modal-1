@@ -3,7 +3,7 @@ import Ofpp
 
 
 class FlowField:
-    def __init__(self, add_e=False, add_T=False):
+    def __init__(self, add_e=False, add_temp=False):
         dummy = np.empty(0)
 
         self.n_val = 5  # density, velocity, pressure
@@ -14,7 +14,7 @@ class FlowField:
         self._init_field()
         if add_e:
             self._add_energy()
-        if add_T:
+        if add_temp:
             self._add_temperature()
 
     def _init_field(self, *args, **kwargs):
