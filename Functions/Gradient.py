@@ -8,12 +8,11 @@ from Variables import Variables
 
 
 class Gradient(Variables):
-    def __init__(self, mesh, sub_list=None):
-        super(Gradient, self).__init__(mesh, sub_list)
+    def __init__(self, mesh):
+        super(Gradient, self).__init__(mesh, n_return=3)
 
         self.bd_cond = BDcond(mesh)
         # self.axis = axis
-        self.n_return = 3
 
         # self._val_vec = np.empty(5, dtype=np.float64)
 

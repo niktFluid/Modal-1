@@ -9,7 +9,7 @@ from Variables import Variables
 
 
 class MatMaker:
-    def __init__(self, target, n_cell, n_val, ave_field=None, vector_func=False):
+    def __init__(self, target, n_cell, n_val, ave_field=None):
         self.n_cell = n_cell
         self.n_val = n_val
         self.n_size_in = n_cell * n_val
@@ -18,7 +18,6 @@ class MatMaker:
         # self.flow_data = flow_data
 
         self._variables = target
-        self._vector_func = vector_func
         # self._check_target()
         self.n_return = self._variables.n_return
         self.n_size_out = n_cell * self.n_return
@@ -29,7 +28,6 @@ class MatMaker:
             n_val_ph = 5  # rho, u, v, w, pressure
         else:
             n_val_ph = 7  # add energy and temperature
-
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
 
     def _check_target(self):

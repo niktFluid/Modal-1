@@ -3,14 +3,14 @@ import itertools
 
 
 class Variables:
-    def __init__(self, mesh, sub_list=None):
+    def __init__(self, mesh, n_return=1, sub_list=None):
         self.mesh = mesh
         # self.flow_data = flow_data
 
         self.leave_list = None
         self._sub_list = sub_list
 
-        self.n_return = 1
+        self.n_return = n_return
 
     def get_leaves(self, id_cell):
         my_ref_cells = self.return_ref_cells(id_cell)
