@@ -9,18 +9,21 @@ from Variables import Variables
 
 
 class MatMaker:
-    def __init__(self, target, n_cell, n_val, ave_field=None):
+    def __init__(self, target, n_cell, n_val, ave_field=None, vector_func=False):
         self.n_cell = n_cell
         self.n_val = n_val
-        self.n_size = n_cell * n_val
+        self.n_size_in = n_cell * n_val
 
         # self.mesh = mesh
         # self.flow_data = flow_data
 
         self._variables = target
+        self._vector_func = vector_func
         # self._check_target()
+        self.n_return = self._variables.n_return
+        self.n_size_out = n_cell * self.n_return
 
-        self.operator = lil_matrix((self.n_size, self.n_size), dtype=np.float64)
+        self.operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
 
         if ave_field is None:
             n_val_ph = 5  # rho, u, v, w, pressure
@@ -60,28 +63,22 @@ class MatMaker:
         # print(val_list)
 
         for id_val, ref_cell, ref_val, val in val_list:
-            i_row = self._serializer(id_cell, id_val)
-            i_col = self._serializer(ref_cell, ref_val)
+            i_row = id_cell * self.n_return + id_val
+            i_col = ref_cell * self.n_val + ref_val
             self.operator[i_row, i_col] = val
-
-    def _serializer(self, id_cell, id_val):
-        return id_cell * self.n_val + id_val
 
     def _calc_sub(self, id_cell):
         variables = self._variables
+        n_func_val = variables.n_return
         ref_cells = variables.get_leaves(id_cell)
         # print(ref_cells)
 
-        def iterator(i_val, r_cell, r_val):
-            # ph = self._set_place_holder(r_cell, r_val)
-            self._ph.set_ph(r_cell, r_val)
-            val = variables.formula(self._ph, id_cell, i_val)
-            return val
-
         val_list = []
-        for id_val, ref_cell, ref_val in itertools.product(range(self.n_val), ref_cells, range(self.n_val)):
-            val_list.append((id_val, ref_cell, ref_val, iterator(id_val, ref_cell, ref_val)))
-
+        for ref_cell, ref_val in itertools.product(ref_cells, range(self.n_val)):
+            self._ph.set_ph(ref_cell, ref_val)
+            func_val = variables.formula(self._ph, id_cell)
+            for id_val in range(n_func_val):
+                val_list.append((id_val, ref_cell, ref_val, func_val[id_val]))
         return val_list
 
 

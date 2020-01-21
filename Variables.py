@@ -8,8 +8,9 @@ class Variables:
         # self.flow_data = flow_data
 
         self.leave_list = None
-
         self._sub_list = sub_list
+
+        self.n_return = 1
 
     def get_leaves(self, id_cell):
         my_ref_cells = self.return_ref_cells(id_cell)
@@ -23,7 +24,7 @@ class Variables:
 
         return self.leave_list
 
-    def formula(self, ph, id_cell, id_val, **kwargs):
+    def formula(self, data, id_cell, **kwargs):
         raise NotImplementedError
 
     def return_ref_cells(self, id_cell):

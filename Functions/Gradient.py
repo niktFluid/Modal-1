@@ -3,16 +3,17 @@ import numpy as np
 from scipy import linalg
 # from scipy.sparse import csr_matrix
 
+from BoundaryCondition import BoundaryCondition as BDcond
 from Variables import Variables
 
 
 class Gradient(Variables):
-    def __init__(self, mesh, bd_cond, sub_list=None, axis=None):
+    def __init__(self, mesh, sub_list=None):
         super(Gradient, self).__init__(mesh, sub_list)
 
-        self.bd_cond = bd_cond
-
-        self.axis = axis
+        self.bd_cond = BDcond(mesh)
+        # self.axis = axis
+        self.n_return = 3
 
         # self._val_vec = np.empty(5, dtype=np.float64)
 
@@ -28,15 +29,10 @@ class Gradient(Variables):
 
         return list(set(ref_cells))
 
-    def formula(self, data, id_cell, id_val, axis=None):
+    def formula(self, data, id_cell, id_val=0):
         vec_rhs = self._set_rhs(data, id_cell, id_val)
         grad = linalg.lu_solve((self.matLU1[id_cell], self.matLU2[id_cell]), vec_rhs)
-        # print(grad)
-
-        if self.axis is not None:
-            return grad[self.axis]
-        else:
-            return grad
+        return grad
 
     def _set_left_mat(self):
         n_cell = self.mesh.n_cell
