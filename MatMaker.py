@@ -116,41 +116,50 @@ class PlaceHolder:
         if 0 <= i_val < 5:
             # for Rho, u vel, v vel, w vel, pressure
             return float(i_cell == self.i_cell and i_val == self.i_val)
-        if i_val == 5:
+        elif i_val == 5:
             # for energy
-            g2 = self._gamma_2
-
-            rho = self[i_cell, 0]
-            u = self[i_cell, 1]
-            v = self[i_cell, 2]
-            w = self[i_cell, 3]
-            p = self[i_cell, 4]
-
-            ave = self._ave_field
-            rho_ave = ave[i_cell, 0]
-            u_ave = ave[i_cell, 1]
-            v_ave = ave[i_cell, 2]
-            w_ave = ave[i_cell, 3]
-
-            term_1 = g2 * p
-            term_2 = 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
-            term_3 = rho_ave * (u * u_ave + v * v_ave + w * w_ave)
-
-            return term_1 + term_2 + term_3
-        if i_val == 6:
+            return self._calc_energy(i_cell)
+        elif i_val == 6:
             # for temperature
-            g1 = self._gamma
-
-            rho = self[i_cell, 0]
-            p = self[i_cell, 4]
-
-            ave = self._ave_field
-            rho_ave = ave[i_cell, 0]
-            p_ave = ave[i_cell, 4]
-
-            term_1 = g1 * p / rho_ave
-            term_2 = g1 * p_ave * rho / (rho_ave * rho_ave)
-
-            return term_1 - term_2
+            return self._calc_temperature(i_cell)
         else:
             raise Exception
+
+    def _calc_energy(self, i_cell):
+        # for temperature
+        g2 = self._gamma_2
+
+        rho = self[i_cell, 0]
+        u = self[i_cell, 1]
+        v = self[i_cell, 2]
+        w = self[i_cell, 3]
+        p = self[i_cell, 4]
+
+        ave = self._ave_field
+        rho_ave = ave[i_cell, 0]
+        u_ave = ave[i_cell, 1]
+        v_ave = ave[i_cell, 2]
+        w_ave = ave[i_cell, 3]
+
+        term_1 = g2 * p
+        term_2 = 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+        term_3 = rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+
+        return term_1 + term_2 + term_3
+
+    def _calc_temperature(self, i_cell):
+
+        # for temperature
+        g1 = self._gamma
+
+        rho = self[i_cell, 0]
+        p = self[i_cell, 4]
+
+        ave = self._ave_field
+        rho_ave = ave[i_cell, 0]
+        p_ave = ave[i_cell, 4]
+
+        term_1 = g1 * p / rho_ave
+        term_2 = g1 * p_ave * rho / (rho_ave * rho_ave)
+
+        return term_1 - term_2

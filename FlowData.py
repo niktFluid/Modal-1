@@ -3,7 +3,7 @@ import Ofpp
 
 
 class FlowField:
-    def __init__(self):
+    def __init__(self, add_e=False, add_T=False):
         dummy = np.empty(0)
 
         self.n_val = 5  # density, velocity, pressure
@@ -12,6 +12,10 @@ class FlowField:
         self.sol_time = 0.0
 
         self._init_field()
+        if add_e:
+            self._add_energy()
+        if add_T:
+            self._add_temperature()
 
     def _init_field(self, *args, **kwargs):
         raise NotImplementedError
@@ -24,6 +28,32 @@ class FlowField:
 
     def get_interface_data(self, bd_cells):
         return [self.data[ind] for ind in bd_cells]
+
+    def _add_energy(self):
+        self.n_val += 1
+
+        data = self.data
+        rho = data[:, 0]
+        u = data[:, 1]
+        v = data[:, 2]
+        w = data[:, 3]
+        p = data[:, 4]
+
+        g2 = 1.0 / (1.4 - 1.0)
+        e = g2 * p + 0.5 * rho * (u * u + v * v + w * w)
+
+        np.vstack((self.data, e))
+
+    def _add_temperature(self):
+        self.n_val += 1
+
+        data = self.data
+        rho = data[:, 0]
+        p = data[:, 4]
+
+        temp = 1.4 * p / rho
+
+        np.vstack((self.data, temp))
 
     # noinspection PyTypeChecker
     def vis_tecplot(self, mesh, file_name='Default.dat'):

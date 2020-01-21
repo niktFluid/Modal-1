@@ -14,7 +14,7 @@ class Gradient(Variables):
 
         self.axis = axis
 
-        self._val_vec = np.empty(5, dtype=np.float64)
+        # self._val_vec = np.empty(5, dtype=np.float64)
 
         # Least Square matrix
         n_cell = mesh.n_cell
@@ -95,13 +95,11 @@ class Gradient(Variables):
 
             val_diff = val_k - val_0
         else:  # For boundary cells
-            val_vec = self._val_vec
+            n_val = data.n_val
+            val_vec = np.empty(n_val, dtype=np.float64)
 
-            val_vec[0] = data[id_0, 0]
-            val_vec[1] = data[id_0, 1]
-            val_vec[2] = data[id_0, 2]
-            val_vec[3] = data[id_0, 3]
-            val_vec[4] = data[id_0, 4]
+            for i_val in range(n_val):
+                val_vec[i_val] = data[id_0, i_val]
 
             val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_k)
             val_diff = val_bd[id_val] - val_vec[id_val]
