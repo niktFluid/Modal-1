@@ -9,7 +9,7 @@ from Variables import Variables
 
 
 class MatMaker:
-    def __init__(self, n_cell, n_val, target):
+    def __init__(self, target, n_cell, n_val, ave_field=None):
         self.n_cell = n_cell
         self.n_val = n_val
         self.n_size = n_cell * n_val
@@ -17,19 +17,21 @@ class MatMaker:
         # self.mesh = mesh
         # self.flow_data = flow_data
 
-        self.variables = target
+        self._variables = target
         # self._check_target()
 
-        self.operator = self._set_matrix()
+        self.operator = lil_matrix((self.n_size, self.n_size), dtype=np.float64)
 
-        self._ph = PlaceHolder(n_cell, n_val)
+        if ave_field is None:
+            n_val_ph = 5  # rho, u, v, w, pressure
+        else:
+            n_val_ph = 7  # add energy and temperature
+
+        self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
 
     def _check_target(self):
-        if not issubclass(self.variables, Variables):
+        if not issubclass(self._variables, Variables):
             raise TypeError
-
-    def _set_matrix(self):
-        return lil_matrix((self.n_size, self.n_size), dtype=np.float64)
 
     def get_mat(self):
         t_start = time.time()
@@ -66,7 +68,7 @@ class MatMaker:
         return id_cell * self.n_val + id_val
 
     def _calc_sub(self, id_cell):
-        variables = self.variables
+        variables = self._variables
         ref_cells = variables.get_leaves(id_cell)
         # print(ref_cells)
 
@@ -84,12 +86,21 @@ class MatMaker:
 
 
 class PlaceHolder:
-    def __init__(self, n_cell, n_val):
+    def __init__(self, n_cell, n_val, ave_field=None):
+        self._gamma = 1.4
+        self._gamma_2 = 1.0 / (1.4 - 1.0)
+
         self.n_cell = n_cell
         self.n_val = n_val
 
         self.i_cell = -1
         self.i_val = -1
+
+        self._ave_field = ave_field
+
+        if n_val > 5 and ave_field is None:
+            # For calculating energy and temperature
+            raise Exception
 
     def shape(self):
         return self.n_cell, self.n_val
@@ -99,4 +110,47 @@ class PlaceHolder:
         self.i_val = i_val
 
     def __getitem__(self, x):
-        return float(x[0] == self.i_cell and x[1] == self.i_val)
+        i_cell = x[0]
+        i_val = x[1]
+
+        if 0 <= i_val < 5:
+            # for Rho, u vel, v vel, w vel, pressure
+            return float(i_cell == self.i_cell and i_val == self.i_val)
+        if i_val == 5:
+            # for energy
+            g2 = self._gamma_2
+
+            rho = self[i_cell, 0]
+            u = self[i_cell, 1]
+            v = self[i_cell, 2]
+            w = self[i_cell, 3]
+            p = self[i_cell, 4]
+
+            ave = self._ave_field
+            rho_ave = ave[i_cell, 0]
+            u_ave = ave[i_cell, 1]
+            v_ave = ave[i_cell, 2]
+            w_ave = ave[i_cell, 3]
+
+            term_1 = g2 * p
+            term_2 = 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+            term_3 = rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+
+            return term_1 + term_2 + term_3
+        if i_val == 6:
+            # for temperature
+            g1 = self._gamma
+
+            rho = self[i_cell, 0]
+            p = self[i_cell, 4]
+
+            ave = self._ave_field
+            rho_ave = ave[i_cell, 0]
+            p_ave = ave[i_cell, 4]
+
+            term_1 = g1 * p / rho_ave
+            term_2 = g1 * p_ave * rho / (rho_ave * rho_ave)
+
+            return term_1 - term_2
+        else:
+            raise Exception

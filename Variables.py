@@ -3,9 +3,9 @@ import itertools
 
 
 class Variables:
-    def __init__(self, mesh, flow_data, sub_list=None):
+    def __init__(self, mesh, sub_list=None):
         self.mesh = mesh
-        self.flow_data = flow_data
+        # self.flow_data = flow_data
 
         self.leave_list = None
 

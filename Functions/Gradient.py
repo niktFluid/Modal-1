@@ -7,8 +7,8 @@ from Variables import Variables
 
 
 class Gradient(Variables):
-    def __init__(self, mesh, flow_data, bd_cond, sub_list=None, axis=None):
-        super(Gradient, self).__init__(mesh, flow_data, sub_list)
+    def __init__(self, mesh, bd_cond, sub_list=None, axis=None):
+        super(Gradient, self).__init__(mesh, sub_list)
 
         self.bd_cond = bd_cond
 

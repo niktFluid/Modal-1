@@ -114,6 +114,7 @@ class OfData(FlowField):
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
 
     def _make_connectivity(self, mesh):
+        # We should arrange this subroutine for clarify.
         for i_cell in range(self.n_cell):
             faces = mesh.cell_faces[i_cell]
             nodes = set(sum([mesh.face_nodes[x] for x in faces], []))
