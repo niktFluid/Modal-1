@@ -37,9 +37,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         faces = self.mesh.cell_faces[id_cell]
 
         rhs_vec = np.zeros(5, dtype=np.float64)
-        for id_cell, id_face in zip(nb_cells, faces):
-            rhs_vec += self._calc_inviscid_flux(id_cell, id_face)
-            rhs_vec += self._calc_viscous_flux(id_cell, id_face)
+        for nb_cell, nb_face in zip(nb_cells, faces):
+            rhs_vec += self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face)
+            rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face)
 
         return rhs_vec
 
@@ -55,13 +55,57 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         return self._ave_field
 
-    def _calc_inviscid_flux(self, id_cell, id_face):
+    def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):
+        vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+        vec_f = self.mesh.conv_vel(0.5 * (vec_a + vec_b), nb_face, 'G2L')
+        rho = vec_f[0]
+        u = vec_f[1]
+        v = vec_f[2]
+        w = vec_f[3]
+        p = vec_f[4]
+        e = vec_f[5]
+        # t = vec_f[6]
+
+        ave_data = self._ave_field.data
+        ave_a, ave_b = self._get_cell_vals(ave_data, id_cell, nb_cell, nb_face)
+        ave_f = self.mesh.conv_vel(0.5 * (ave_a + ave_b), nb_face, 'G2L')
+        rho_ave = ave_f[0]
+        u_ave = ave_f[1]
+        v_ave = ave_f[2]
+        w_ave = ave_f[3]
+        p_ave = ave_f[4]
+        e_ave = ave_f[5]
+        # t_ave = ave_f[6]
+
+        f = np.empty(5, dtype=np.float64)
+        f[1] = rho * u_ave + rho_ave * u
+        f[2] = 2.0 * rho_ave * u_ave * u + rho * u_ave * u_ave + p
+        f[3] = rho_ave * u_ave * v + rho_ave * u * v_ave + rho * u_ave * v_ave
+        f[4] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
+        f[5] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
+
+        return self.mesh.conv_vel(f, nb_face, 'L2G')
+
+    def _calc_viscous_flux(self, data, id_cell, nb_cell, nb_face):
         ave_data = self._ave_field.data
         return np.zeros(5, dtype=np.float64)
 
-    def _calc_viscous_flux(self, id_cell, id_face):
-        ave_data = self._ave_field.data
-        return np.zeros(5, dtype=np.float64)
+    def _get_cell_vals(self, data, id_cell, nb_cell, nb_face):
+        n_val = data.n_val
+
+        def get_vals(i_cell):
+            val_vec = np.empty(n_val, dtype=np.float64)
+            for i_val in range(n_val):
+                val_vec[i_val] = data[i_cell, i_val]
+            return val_vec
+
+        val_vec_0 = get_vals(id_cell)
+        if nb_cell >= 0:  # For inner cells
+            val_vec_nb = get_vals(nb_cell)
+        else:  # For boundary cells
+            val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face, nb_cell)
+
+        return val_vec_0, val_vec_nb
 
     def _bd_for_grad(self):
         pass

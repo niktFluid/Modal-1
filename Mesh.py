@@ -110,6 +110,25 @@ class Mesh:
 
         return id_bd
 
+    def conv_vel(self, val_vec, id_face, conv_type):
+        if conv_type == 'G2L':
+            vec_n = self.face_vec_n[id_face]
+            vec_t1 = self.face_vec_t1[id_face]
+            vec_t2 = self.face_vec_t2[id_face]
+        elif conv_type == 'L2G':
+            vec_n = self.face_vec_ni[id_face]
+            vec_t1 = self.face_vec_t1i[id_face]
+            vec_t2 = self.face_vec_t2i[id_face]
+        else:
+            raise TypeError
+
+        u_vel = val_vec[1:4]
+        val_vec[1] = vec_n @ u_vel
+        val_vec[2] = vec_t1 @ u_vel
+        val_vec[3] = vec_t2 @ u_vel
+
+        return val_vec
+
 
 class OfMesh(Mesh):
     def __init__(self, path_dir, path_centres, path_vols, path_bd_u, path_bd_p):
