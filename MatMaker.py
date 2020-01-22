@@ -121,7 +121,7 @@ class PlaceHolder:
             raise Exception
 
     def _calc_energy(self, i_cell):
-        # for temperature
+        # for energy variation
         g2 = self._gamma_2
 
         rho = self[i_cell, 0]
@@ -143,8 +143,7 @@ class PlaceHolder:
         return term_1 + term_2 + term_3
 
     def _calc_temperature(self, i_cell):
-
-        # for temperature
+        # for temperature variation
         g1 = self._gamma
 
         rho = self[i_cell, 0]

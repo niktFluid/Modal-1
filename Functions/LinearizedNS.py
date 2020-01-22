@@ -13,7 +13,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.mu = mu
         self.kappa = kappa
         self.pr = pr
-        self.pr_inv = 1.0 / pr
+        self.coef_heat_flux = kappa / ((self.gamma - 1) * pr)
 
         self.mesh = mesh
         self.bd_cond = BDcond(mesh)
@@ -39,7 +39,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         rhs_vec = np.zeros(5, dtype=np.float64)
         for nb_cell, nb_face in zip(nb_cells, faces):
             area = self.mesh.face_area[nb_face]
-            flip = -1.0 + 2.0 * float(nb_cell - id_cell or nb_cell < 0)
+            flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
 
             rhs_vec += self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face) * area * flip
             rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face) * area * flip
@@ -90,10 +90,31 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         return self.mesh.conv_vel(f, nb_face, 'L2G')
 
     def _calc_viscous_flux(self, data, id_cell, nb_cell, nb_face):
+        flux = np.zeros(5, dtype=np.float64)
+        vec_n = self.mesh.face_vec_n[nb_face]
+
+        vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+        vec_f = 0.5 * (vec_a + vec_b)
+        u_vel = vec_f[1:4]
+
+        g_face = self._get_face_grad(id_cell, nb_cell, data)
+        tau = self._get_stress_tensor(g_face)
+
         ave_data = self._ave_field.data
-        return np.zeros(5, dtype=np.float64)
+        ave_a, ave_b = self._get_cell_vals(ave_data, id_cell, nb_cell, nb_face)
+        ave_f = 0.5 * (ave_a + ave_b)
+        u_ave = ave_f[1:4]
+
+        g_face_ave = self._get_face_grad(id_cell, nb_cell, ave_value=True)
+        tau_ave = self._get_stress_tensor(g_face_ave)
+
+        flux[1:4] = tau @ vec_n
+        energy_flux = tau @ u_ave + tau_ave @ u_vel + self.coef_heat_flux * g_face[6, :]
+        flux[4] = energy_flux @ vec_n
+        return flux
 
     def _conv2prime(self, vec_conv, id_cell):
+        # Convert the conservative variables to the prime variables.
         rho = vec_conv[0]
         ru = vec_conv[1]
         rv = vec_conv[2]
@@ -105,7 +126,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         u_ave = ave_data[id_cell, 1]
         v_ave = ave_data[id_cell, 2]
         w_ave = ave_data[id_cell, 3]
-        p_ave = ave_data[id_cell, 4]
+        # p_ave = ave_data[id_cell, 4]
         ra_inv = 1.0 / rho_ave
 
         vec_pr = np.empty(5, dtype=np.float64)
@@ -140,9 +161,48 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         return val_vec_0, val_vec_nb
 
-    def _get_face_grad(self, data, id_cell, nb_cell, nb_face):
-        grad = self._grad
-        return 0.0
+    def _get_face_grad(self, id_cell, nb_cell, data=None, val_list=None, ave_value=False):
+        if val_list is None:
+            val_list = [1, 2, 3, 6]  # Only consider the velocities and temperature.
 
-    def _bd_for_grad(self):
-        pass
+        def get_grad_vec(i_cell):
+            if ave_value:
+                grad_vec = self._grad_ave[id_cell]
+            else:
+                grad_vec = np.zeros((data.n_val, 3), dtype=np.float64)
+                for i_val in val_list:
+                    grad_vec[i_val] = self._grad.formula(data, i_cell)
+            return grad_vec
+        grad_id = get_grad_vec(id_cell)
+        vol_ib = self.mesh.volumes[id_cell]
+
+        if nb_cell > 0:  # For inner faces
+            grad_nb = get_grad_vec(nb_cell)
+            vol_nb = self.mesh.volumes[nb_cell]
+        else:  # For boundary faces.
+            grad_nb = get_grad_vec(id_cell)
+            vol_nb = self.mesh.volumes[id_cell]
+
+        vol_inv = 1.0 / (vol_ib + vol_nb)
+        grad_face = (grad_id * vol_ib + grad_nb * vol_nb) * vol_inv
+
+        return grad_face
+
+    def _get_stress_tensor(self, grad):
+        tensor = np.empty((3, 3), dtype=np.float64)
+        mu = self.mu
+
+        div_u = (grad[1, 0] + grad[2, 1] + grad[3, 2]) / 3.0
+        tensor[0, 0] = 2.0 * mu * (grad[1, 0] - div_u)
+        tensor[1, 1] = 2.0 * mu * (grad[2, 1] - div_u)
+        tensor[2, 2] = 2.0 * mu * (grad[3, 2] - div_u)
+
+        tensor[0, 1] = mu * (grad[1, 1] + grad[2, 0])
+        tensor[0, 2] = mu * (grad[1, 2] + grad[3, 0])
+        tensor[1, 2] = mu * (grad[2, 2] + grad[3, 1])
+
+        tensor[1, 0] = tensor[0, 1]
+        tensor[2, 0] = tensor[0, 2]
+        tensor[2, 1] = tensor[1, 2]
+
+        return tensor
