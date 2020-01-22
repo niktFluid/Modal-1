@@ -38,10 +38,13 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         rhs_vec = np.zeros(5, dtype=np.float64)
         for nb_cell, nb_face in zip(nb_cells, faces):
-            rhs_vec += self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face)
-            rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face)
+            area = self.mesh.face_area[nb_face]
+            flip = -1.0 + 2.0 * float(nb_cell - id_cell or nb_cell < 0)
 
-        return rhs_vec
+            rhs_vec += self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face) * area * flip
+            rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face) * area * flip
+
+        return self._conv2prime(rhs_vec, id_cell)
 
     def _grad_ave_field(self):
         grad = self._grad
@@ -90,6 +93,36 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         ave_data = self._ave_field.data
         return np.zeros(5, dtype=np.float64)
 
+    def _conv2prime(self, vec_conv, id_cell):
+        rho = vec_conv[0]
+        ru = vec_conv[1]
+        rv = vec_conv[2]
+        rw = vec_conv[3]
+        e = vec_conv[4]
+
+        ave_data = self._ave_field.data
+        rho_ave = ave_data[id_cell, 0]
+        u_ave = ave_data[id_cell, 1]
+        v_ave = ave_data[id_cell, 2]
+        w_ave = ave_data[id_cell, 3]
+        p_ave = ave_data[id_cell, 4]
+        ra_inv = 1.0 / rho_ave
+
+        vec_pr = np.empty(5, dtype=np.float64)
+        vec_pr[0] = rho
+        vec_pr[1] = ra_inv * ru - u_ave * ra_inv * rho
+        vec_pr[2] = ra_inv * rv - v_ave * ra_inv * rho
+        vec_pr[3] = ra_inv * rw - w_ave * ra_inv * rho
+
+        u = vec_pr[1]
+        v = vec_pr[2]
+        w = vec_pr[3]
+        vec_pr[4] = 0.4 * e
+        vec_pr[4] -= - 0.4 * 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+        vec_pr[4] -= - 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+
+        return vec_pr
+
     def _get_cell_vals(self, data, id_cell, nb_cell, nb_face):
         n_val = data.n_val
 
@@ -106,6 +139,10 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face, nb_cell)
 
         return val_vec_0, val_vec_nb
+
+    def _get_face_grad(self, data, id_cell, nb_cell, nb_face):
+        grad = self._grad
+        return 0.0
 
     def _bd_for_grad(self):
         pass
