@@ -90,7 +90,7 @@ class Gradient(Variables):
 
             val_diff = val_k - val_0
         else:  # For boundary cells
-            n_val = data.n_val
+            n_val = data.shape[1]
             val_vec = np.empty(n_val, dtype=np.float64)
 
             for i_val in range(n_val):

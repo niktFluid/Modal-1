@@ -42,7 +42,7 @@ class FlowField:
         g2 = 1.0 / (1.4 - 1.0)
         e = g2 * p + 0.5 * rho * (u * u + v * v + w * w)
 
-        np.vstack((self.data, e))
+        self.data = np.hstack((self.data, e.reshape((self.n_cell, 1))))
 
     def _add_temperature(self):
         self.n_val += 1
@@ -53,7 +53,7 @@ class FlowField:
 
         temp = 1.4 * p / rho
 
-        np.vstack((self.data, temp))
+        self.data = np.hstack((self.data, temp.reshape((self.n_cell, 1))))
 
     # noinspection PyTypeChecker
     def vis_tecplot(self, mesh, file_name='Default.dat'):
@@ -114,13 +114,13 @@ class FlowField:
 
 
 class OfData(FlowField):
-    def __init__(self, path_dir, path_u, path_p, path_rho):
+    def __init__(self, path_dir, path_u, path_p, path_rho, add_e=False, add_temp=False):
         self.path_dir = path_dir
         self.path_u = path_u
         self.path_p = path_p
         self.path_rho = path_rho
 
-        super(OfData, self).__init__()
+        super(OfData, self).__init__(add_e=add_e, add_temp=add_temp)
 
     def _init_field(self):
         self.update_from_file()

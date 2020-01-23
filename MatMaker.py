@@ -87,6 +87,7 @@ class PlaceHolder:
 
         self.n_cell = n_cell
         self.n_val = n_val
+        self.shape = (self.n_cell, self.n_val)
 
         self.i_cell = -1
         self.i_val = -1
@@ -96,9 +97,6 @@ class PlaceHolder:
         if n_val > 5 and ave_field is None:
             # For calculating energy and temperature
             raise Exception
-
-    def shape(self):
-        return self.n_cell, self.n_val
 
     def set_ph(self, i_cell, i_val):
         self.i_cell = i_cell
@@ -130,7 +128,7 @@ class PlaceHolder:
         w = self[i_cell, 3]
         p = self[i_cell, 4]
 
-        ave = self._ave_field
+        ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
         u_ave = ave[i_cell, 1]
         v_ave = ave[i_cell, 2]
@@ -149,7 +147,7 @@ class PlaceHolder:
         rho = self[i_cell, 0]
         p = self[i_cell, 4]
 
-        ave = self._ave_field
+        ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
         p_ave = ave[i_cell, 4]
 

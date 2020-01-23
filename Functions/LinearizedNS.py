@@ -7,13 +7,12 @@ from Functions.Gradient import Gradient
 
 
 class LNS(Variables):  # Linearized Navier-Stokes equations
-    def __init__(self, mesh, ave_field, mu, kappa, pr):
+    def __init__(self, mesh, ave_field, mu, pr):
         self.gamma = 1.4
         self.gamma_1 = 1.0 / (1.4 - 1.0)
         self.mu = mu
-        self.kappa = kappa
         self.pr = pr
-        self.coef_heat_flux = kappa / ((self.gamma - 1) * pr)
+        self.coef_heat_flux = mu / ((self.gamma - 1) * pr)
 
         self.mesh = mesh
         self.bd_cond = BDcond(mesh)
@@ -56,7 +55,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         for i_cell, i_val in product(range(n_cell), range(n_val)):
             grad_ave[i_cell, i_val] = grad.formula(data, i_cell, i_val)
 
-        return self._ave_field
+        return grad_ave
 
     def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):
         vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
@@ -81,11 +80,11 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         # t_ave = ave_f[6]
 
         f = np.empty(5, dtype=np.float64)
-        f[1] = rho * u_ave + rho_ave * u
-        f[2] = 2.0 * rho_ave * u_ave * u + rho * u_ave * u_ave + p
-        f[3] = rho_ave * u_ave * v + rho_ave * u * v_ave + rho * u_ave * v_ave
-        f[4] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
-        f[5] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
+        f[0] = rho * u_ave + rho_ave * u
+        f[1] = 2.0 * rho_ave * u_ave * u + rho * u_ave * u_ave + p
+        f[2] = rho_ave * u_ave * v + rho_ave * u * v_ave + rho * u_ave * v_ave
+        f[3] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
+        f[4] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
 
         return self.mesh.conv_vel(f, nb_face, 'L2G')
 
@@ -145,7 +144,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         return vec_pr
 
     def _get_cell_vals(self, data, id_cell, nb_cell, nb_face):
-        n_val = data.n_val
+        n_val = data.shape[1]
 
         def get_vals(i_cell):
             val_vec = np.empty(n_val, dtype=np.float64)

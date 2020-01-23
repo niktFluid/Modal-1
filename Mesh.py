@@ -122,12 +122,18 @@ class Mesh:
         else:
             raise TypeError
 
-        u_vel = val_vec[1:4]
-        val_vec[1] = vec_n @ u_vel
-        val_vec[2] = vec_t1 @ u_vel
-        val_vec[3] = vec_t2 @ u_vel
-
-        return val_vec
+        if len(val_vec) == 3:
+            vec = np.empty(3, dtype=np.float64)
+            vec[0] = vec_n @ val_vec
+            vec[1] = vec_t1 @ val_vec
+            vec[2] = vec_t2 @ val_vec
+            return vec
+        else:
+            u_vel = val_vec[1:4]
+            val_vec[1] = vec_n @ u_vel
+            val_vec[2] = vec_t1 @ u_vel
+            val_vec[3] = vec_t2 @ u_vel
+            return val_vec
 
 
 class OfMesh(Mesh):
@@ -170,6 +176,7 @@ class OfMesh(Mesh):
         ind_a = np.vstack((face_nodes[:, 2], face_nodes[:, 0]))
         ind_b = np.vstack((face_nodes[:, 3], face_nodes[:, 1]))
 
+        # print(ind_a)
         vec_a = np.squeeze(np.diff(self.nodes[ind_a], axis=0))
         vec_b = np.squeeze(np.diff(self.nodes[ind_b], axis=0))
         vec_c = np.cross(vec_a, vec_b)
