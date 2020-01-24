@@ -59,7 +59,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
     def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):
         vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
-        vec_f = self.mesh.conv_vel(0.5 * (vec_a + vec_b), nb_face, 'G2L')
+        vec_f = self.mesh.conv_vel(0.5 * (vec_a + vec_b), nb_face)
         rho = vec_f[0]
         u = vec_f[1]
         v = vec_f[2]
@@ -70,7 +70,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         ave_data = self._ave_field.data
         ave_a, ave_b = self._get_cell_vals(ave_data, id_cell, nb_cell, nb_face)
-        ave_f = self.mesh.conv_vel(0.5 * (ave_a + ave_b), nb_face, 'G2L')
+        ave_f = self.mesh.conv_vel(0.5 * (ave_a + ave_b), nb_face)
         rho_ave = ave_f[0]
         u_ave = ave_f[1]
         v_ave = ave_f[2]
@@ -86,11 +86,11 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         f[3] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
         f[4] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
 
-        return self.mesh.conv_vel(f, nb_face, 'L2G')
+        return self.mesh.conv_vel(f, nb_face, inverse=True)
 
     def _calc_viscous_flux(self, data, id_cell, nb_cell, nb_face):
         flux = np.zeros(5, dtype=np.float64)
-        vec_n = self.mesh.face_vec_n[nb_face]
+        face_normal_vec = self.mesh.face_mat[nb_face, 0]
 
         vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
         vec_f = 0.5 * (vec_a + vec_b)
@@ -107,9 +107,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         g_face_ave = self._get_face_grad(id_cell, nb_cell, ave_value=True)
         tau_ave = self._get_stress_tensor(g_face_ave)
 
-        flux[1:4] = tau @ vec_n
+        flux[1:4] = tau @ face_normal_vec
         energy_flux = tau @ u_ave + tau_ave @ u_vel + self.coef_heat_flux * g_face[6, :]
-        flux[4] = energy_flux @ vec_n
+        flux[4] = energy_flux @ face_normal_vec
         return flux
 
     def _conv2prime(self, vec_conv, id_cell):

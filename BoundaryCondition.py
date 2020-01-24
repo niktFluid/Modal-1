@@ -12,13 +12,13 @@ class BoundaryCondition:
     def get_bd_val(self, val_vec, id_face, id_bd):
         # n_val = len(val_vec)
         # rho, vel_vec, pressure = self._split_vec(val_vec)
-        vec_loc = self.mesh.conv_vel(val_vec, id_face, conv_type='G2L')
+        vec_loc = self.mesh.conv_vel(val_vec, id_face)
 
         bd_func = self._select_bd_func(id_bd)
         bd_vec_loc = bd_func(vec_loc, id_face)
 
         # noinspection PyTypeChecker
-        return self.mesh.conv_vel(bd_vec_loc, id_face, conv_type='L2G')
+        return self.mesh.conv_vel(bd_vec_loc, id_face, inverse=True)
 
     def _select_bd_func(self, id_bd):
         if id_bd == self.id_wall:
@@ -45,7 +45,7 @@ class BoundaryCondition:
         else:
             vel = np.zeros(5, dtype=np.float64)
             vel[1:4] = vel_wall_g
-            vel_loc = self.mesh.conv_vel(vel, id_face, conv_type='G2L')
+            vel_loc = self.mesh.conv_vel(vel, id_face)
             vel_wall = vel_loc[1:4]
 
         val_vec[1:4] = 2.0 * vel_wall - val_vec[1:4]

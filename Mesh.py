@@ -29,15 +29,11 @@ class Mesh:
         self.face_area = dummy
         self.face_centers = dummy
 
-        # Vectors for global -> local coordinate transformation
-        self.face_vec_n = dummy
-        self.face_vec_t1 = dummy
-        self.face_vec_t2 = dummy
+        # Matrix for global -> local coordinate transformation
+        self.face_mat = dummy
 
-        # Vectors for local -> global coordinate transformation
-        self.face_vec_ni = dummy
-        self.face_vec_t1i = dummy
-        self.face_vec_t2i = dummy
+        # Matrix for local -> global coordinate transformation
+        # self.face_mat_i = dummy
 
         # Vectors: Owner cell -> neighbour cell
         self.vec_lr = dummy
@@ -71,22 +67,12 @@ class Mesh:
 
         return id_bd
 
-    def conv_vel(self, val_vec, id_face, conv_type):
-        if conv_type == 'G2L':
-            vec_n = self.face_vec_n[id_face]
-            vec_t1 = self.face_vec_t1[id_face]
-            vec_t2 = self.face_vec_t2[id_face]
-        elif conv_type == 'L2G':
-            vec_n = self.face_vec_ni[id_face]
-            vec_t1 = self.face_vec_t1i[id_face]
-            vec_t2 = self.face_vec_t2i[id_face]
-        else:
-            raise TypeError
+    def conv_vel(self, val_vec, id_face, inverse=False):
+        face_mat = self.face_mat[id_face]
+        if inverse:
+            face_mat = face_mat.T
 
-        u_vel = np.copy(val_vec[1:4])
-        val_vec[1] = vec_n @ u_vel
-        val_vec[2] = vec_t1 @ u_vel
-        val_vec[3] = vec_t2 @ u_vel
+        val_vec[1:4] = face_mat @ val_vec[1:4]
         return val_vec
 
 
@@ -127,30 +113,54 @@ class OfMesh(Mesh):
         self._calc_vec_lr()
 
     def _calc_face_vec(self):
-        face_nodes = np.array(self.face_nodes)
-        ind_a = np.vstack((face_nodes[:, 2], face_nodes[:, 0]))
-        ind_b = np.vstack((face_nodes[:, 3], face_nodes[:, 1]))
+        nodes = self.nodes
 
-        # print(ind_a)
-        vec_a = np.squeeze(np.diff(self.nodes[ind_a], axis=0))
-        vec_b = np.squeeze(np.diff(self.nodes[ind_b], axis=0))
-        vec_c = np.cross(vec_a, vec_b)
-        self.face_area = np.linalg.norm(vec_c, axis=1)
+        self.face_area = np.empty(self.n_face, dtype=np.float64)
+        self.face_mat = np.empty((self.n_face, 3, 3), dtype=np.float64)
 
         def normalize(vec):
-            l2 = np.linalg.norm(vec, axis=1, keepdims=True)
-            return vec/l2
-        self.face_vec_n = normalize(vec_c)
-        self.face_vec_t1 = normalize(vec_a)
-        self.face_vec_t2 = np.cross(self.face_vec_n, self.face_vec_t1)
+            return vec/np.linalg.norm(vec)
 
-        def vec_trans(v_ind):
-            return np.vstack((self.face_vec_n[:, v_ind],
-                              self.face_vec_t1[:, v_ind],
-                              self.face_vec_t2[:, v_ind])).T
-        self.face_vec_ni = normalize(vec_trans(0))
-        self.face_vec_t1i = normalize(vec_trans(1))
-        self.face_vec_t2i = normalize(vec_trans(2))
+        for i_face in range(self.n_face):
+            face_nodes = np.array(self.face_nodes[i_face])
+
+            vec_a = nodes[face_nodes[2]] - nodes[face_nodes[0]]
+            vec_b = nodes[face_nodes[3]] - nodes[face_nodes[1]]
+            vec_c = np.cross(vec_a, vec_b)
+            self.face_area[i_face] = np.linalg.norm(vec_c)
+
+            vec_n = normalize(vec_c)  # Surface normal vector
+            vec_t1 = normalize(vec_a)  # Surface tangential vector 1
+            vec_t2 = np.cross(vec_n, vec_t1)
+
+            self.face_mat[i_face, 0] = vec_n
+            self.face_mat[i_face, 1] = vec_t1
+            self.face_mat[i_face, 2] = vec_t2
+
+        # face_nodes = np.array(self.face_nodes)
+        # ind_a = np.vstack((face_nodes[:, 2], face_nodes[:, 0]))
+        # ind_b = np.vstack((face_nodes[:, 3], face_nodes[:, 1]))
+        #
+        # print(ind_a)
+        # vec_a = np.squeeze(np.diff(self.nodes[ind_a], axis=0))
+        # vec_b = np.squeeze(np.diff(self.nodes[ind_b], axis=0))
+        # vec_c = np.cross(vec_a, vec_b)
+        # self.face_area = np.linalg.norm(vec_c, axis=1)
+        #
+        # def normalize(vec):
+        #     l2 = np.linalg.norm(vec, axis=1, keepdims=True)
+        #     return vec/l2
+        # face_vec_n = normalize(vec_c)
+        # face_vec_t1 = normalize(vec_a)
+        # face_vec_t2 = np.cross(face_vec_n, face_vec_t1)
+        #
+        # def vec_trans(v_ind):
+        #     return np.vstack((self.face_vec_n[:, v_ind],
+        #                       self.face_vec_t1[:, v_ind],
+        #                       self.face_vec_t2[:, v_ind])).T
+        # self.face_vec_ni = normalize(vec_trans(0))
+        # self.face_vec_t1i = normalize(vec_trans(1))
+        # self.face_vec_t2i = normalize(vec_trans(2))
 
     def _calc_face_centers(self):
         points = self.nodes[self.face_nodes]
@@ -167,11 +177,11 @@ class OfMesh(Mesh):
             if id_n >= 0:  # For inner faces
                 self.vec_lr[i_face] = centers[id_n] - centers[id_o]
             else:  # For boundary faces
-                face_vec_n = self.face_vec_n
+                face_vec_n = self.face_mat[i_face, 0]
                 face_centers = self.face_centers
 
                 dist_fc = np.linalg.norm(face_centers[i_face] - centers[id_o])
-                self.vec_lr[i_face] = 2.0 * dist_fc * face_vec_n[i_face]
+                self.vec_lr[i_face] = 2.0 * dist_fc * face_vec_n
 
     def _set_boundary(self, mesh):
         bd_u = Ofpp.parse_boundary_field(self.path_dir + self.path_bd_u)
