@@ -1,4 +1,4 @@
-import math
+# import math
 import numpy as np
 from scipy import linalg
 # from scipy.sparse import csr_matrix
@@ -8,9 +8,9 @@ from Variables import Variables
 
 
 class Gradient(Variables):
-    def __init__(self, mesh):
+    def __init__(self, mesh, is2d=False):
         super(Gradient, self).__init__(mesh, n_return=3)
-
+        self.is2d = is2d
         self.bd_cond = BDcond(mesh)
         # self.axis = axis
 
@@ -30,8 +30,7 @@ class Gradient(Variables):
 
     def formula(self, data, id_cell, id_val=0):
         vec_rhs = self._set_rhs(data, id_cell, id_val)
-        grad = linalg.lu_solve((self.matLU1[id_cell], self.matLU2[id_cell]), vec_rhs)
-        return grad
+        return linalg.lu_solve((self.matLU1[id_cell], self.matLU2[id_cell]), vec_rhs)
 
     def _set_left_mat(self):
         n_cell = self.mesh.n_cell
@@ -53,50 +52,31 @@ class Gradient(Variables):
 
         return mat_cell
 
-    def _get_pos_diff(self, id_0, id_k, id_k_face):
-        centers = self.mesh.centers
-
-        if id_k >= 0:  # For inner cells
-            vec_lr = centers[id_k] - centers[id_0]
-        else:  # For boundary cells
-            face_vec_n = self.mesh.face_vec_n
-            face_centers = self.mesh.face_centers
-
-            vec_fc = face_centers[id_k_face] - centers[id_0]
-            dist_fc = math.sqrt(vec_fc[0] * vec_fc[0] + vec_fc[1] * vec_fc[1] + vec_fc[2] * vec_fc[2])
-            # dist_fc = np.linalg.norm(face_centers[id_k_face] - centers[id_0])
-
-            vec_lr = 2.0 * dist_fc * face_vec_n[id_k_face]
-
-        return vec_lr
+    def _get_pos_diff(self, id_cell, nb_cell, nb_face):
+        flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
+        return self.mesh.vec_lr[nb_face] * flip
 
     def _set_rhs(self, data, id_cell, id_val):
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
 
+        val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
         rhs_vec = np.zeros(3, np.float64)
+        # val_vec = np.empty(data.shape[1], dtype=np.float64)
+        # for i_val in range(data.shape[1]):
+        #     val_vec[i_val] = data[id_cell, i_val]
+
         for id_nb, id_face in zip(nb_cells, faces):
             vec_lr = self._get_pos_diff(id_cell, id_nb, id_face)
-            val_diff = self._get_val_diff(data, id_cell, id_nb, id_face, id_val)
-
+            val_diff = self._get_val_diff(data, val_vec, id_nb, id_face, id_val)
             rhs_vec += val_diff * vec_lr
-
         return rhs_vec
 
-    def _get_val_diff(self, data, id_0, id_k, id_k_face, id_val):
+    def _get_val_diff(self, data, vec_0, id_k, id_k_face, id_val):
         if id_k >= 0:  # For inner cells
-            val_0 = data[id_0, id_val]
-            val_k = data[id_k, id_val]
-
-            val_diff = val_k - val_0
+            return data[id_k, id_val] - vec_0[id_val]
+        elif self.is2d and id_k == self.bd_cond.id_empty:
+            return np.zeros(data.shape[1], dtype=np.float64)
         else:  # For boundary cells
-            n_val = data.shape[1]
-            val_vec = np.empty(n_val, dtype=np.float64)
-
-            for i_val in range(n_val):
-                val_vec[i_val] = data[id_0, i_val]
-
-            val_bd = self.bd_cond.get_bd_val(val_vec, id_k_face, id_k)
-            val_diff = val_bd[id_val] - val_vec[id_val]
-
-        return val_diff
+            val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face, id_k)
+            return val_bd[id_val] - vec_0[id_val]

@@ -1,4 +1,5 @@
 import numpy as np
+# import copy
 import Ofpp
 from collections import namedtuple
 
@@ -38,23 +39,8 @@ class Mesh:
         self.face_vec_t1i = dummy
         self.face_vec_t2i = dummy
 
-        # Vectors: Cell center -> Face center
-        self.fc_o = dummy  # Owner side
-        self.fc_n = dummy  # Neighbour side
-        self.dis_fc_o = dummy
-        self.dis_fc_n = dummy
-        self.dis_fc_inv = dummy
-
-        self.fc_bd = dummy
-        self.dis_fc_bd = dummy
-        self.dis_fc_bd_inv = dummy
-
         # Vectors: Owner cell -> neighbour cell
         self.vec_lr = dummy
-        self.lr_inv = dummy
-
-        self.vec_lr_bd = dummy
-        self.lr_inv_bd = dummy
 
         # BC information
         self._bd_tuple = namedtuple('Boundary', ['name', 'type', 'id', 'i_start', 'num', 'u_val', 'p_val'])
@@ -71,31 +57,6 @@ class Mesh:
 
     def cell_neighbours(self, id_cell):
         return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
-
-    def get_bd_cond(self):
-        bd = self.boundary
-        bd_types = [bd[i].type for i in range(len(bd))]
-        bd_u = [bd[i].u_val for i in range(len(bd))]
-        bd_p = [bd[i].p_val for i in range(len(bd))]
-
-        return bd_types, bd_u, bd_p
-
-    def get_bd_geom(self, i_bd, inv=False):
-        area = self.face_area[self.bd_faces[i_bd]]
-
-        if not inv:
-            vec_n = self.face_vec_n[self.bd_faces[i_bd]]
-            vec_t1 = self.face_vec_t1[self.bd_faces[i_bd]]
-            vec_t2 = self.face_vec_t2[self.bd_faces[i_bd]]
-        else:
-            vec_n = self.face_vec_ni[self.bd_faces[i_bd]]
-            vec_t1 = self.face_vec_t1i[self.bd_faces[i_bd]]
-            vec_t2 = self.face_vec_t2i[self.bd_faces[i_bd]]
-
-        return area, vec_n, vec_t1, vec_t2
-
-    def get_bdfc_vec(self):
-        return [self.fc_o[ind] for ind in self.bd_faces]
 
     def get_bd_id(self, id_face):
         id_bd = None
@@ -122,18 +83,11 @@ class Mesh:
         else:
             raise TypeError
 
-        if len(val_vec) == 3:
-            vec = np.empty(3, dtype=np.float64)
-            vec[0] = vec_n @ val_vec
-            vec[1] = vec_t1 @ val_vec
-            vec[2] = vec_t2 @ val_vec
-            return vec
-        else:
-            u_vel = val_vec[1:4]
-            val_vec[1] = vec_n @ u_vel
-            val_vec[2] = vec_t1 @ u_vel
-            val_vec[3] = vec_t2 @ u_vel
-            return val_vec
+        u_vel = np.copy(val_vec[1:4])
+        val_vec[1] = vec_n @ u_vel
+        val_vec[2] = vec_t1 @ u_vel
+        val_vec[3] = vec_t2 @ u_vel
+        return val_vec
 
 
 class OfMesh(Mesh):
@@ -156,7 +110,8 @@ class OfMesh(Mesh):
         self.cell_faces = mesh.cell_faces
 
         self.n_node = len(self.nodes)
-        self.n_face = mesh.num_inner_face
+        # self.n_face = mesh.num_inner_face
+        self.n_face = mesh.num_face
         self.n_bdface = mesh.num_face - mesh.num_inner_face
         self.n_cell = len(self.cell_faces)
 
@@ -201,29 +156,22 @@ class OfMesh(Mesh):
         points = self.nodes[self.face_nodes]
         self.face_centers = np.mean(points, axis=1)
 
-        # Inner faces
-        self.fc_o = self.face_centers - self.centers[self.owner]
-        self.fc_n = self.face_centers[:self.n_face] - self.centers[self.neighbour[:self.n_face]]
-
-        self.dis_fc_o = np.linalg.norm(self.fc_o, axis=1)
-        self.dis_fc_n = np.linalg.norm(self.fc_n, axis=1)
-
-        self.dis_fc_inv = 1.0 / (self.dis_fc_o[:self.n_face] + self.dis_fc_n)
-
-        # Boundary faces
-        self.fc_bd = [self.face_centers[ind_f] - self.centers[ind_c]
-                      for ind_f, ind_c in zip(self.bd_faces, self.bd_cells)]
-        self.dis_fc_bd = [np.linalg.norm(vector, axis=1) for vector in self.fc_bd]
-        self.dis_fc_bd_inv = [1.0/(2.0 * dist) for dist in self.dis_fc_bd]
-
     def _calc_vec_lr(self):
-        self.vec_lr = self.centers[self.neighbour[:self.n_face]] - self.centers[self.owner[:self.n_face]]
-        self.lr_inv = 1.0 / np.linalg.norm(self.vec_lr, axis=1)
+        self.vec_lr = np.zeros((self.n_face, 3), dtype=np.float64)
+        centers = self.centers
 
-        vec_n_bd = [self.get_bd_geom(i_bd)[1] for i_bd in range(len(self.boundary))]
-        self.vec_lr_bd = [2.0 * vec_n * np.tile(dist, (3, 1)).T
-                          for vec_n, dist in zip(vec_n_bd, self.dis_fc_bd)]
-        self.lr_inv_bd = [1.0 / np.linalg.norm(vec, axis=1) for vec in self.vec_lr_bd]
+        for i_face in range(self.n_face):
+            id_o = self.owner[i_face]
+            id_n = self.neighbour[i_face]
+
+            if id_n >= 0:  # For inner faces
+                self.vec_lr[i_face] = centers[id_n] - centers[id_o]
+            else:  # For boundary faces
+                face_vec_n = self.face_vec_n
+                face_centers = self.face_centers
+
+                dist_fc = np.linalg.norm(face_centers[i_face] - centers[id_o])
+                self.vec_lr[i_face] = 2.0 * dist_fc * face_vec_n[i_face]
 
     def _set_boundary(self, mesh):
         bd_u = Ofpp.parse_boundary_field(self.path_dir + self.path_bd_u)
