@@ -1,3 +1,5 @@
+from mpi4py import MPI
+
 from scipy import sparse
 
 from Mesh import OfMesh
@@ -12,14 +14,21 @@ from Functions.LinearizedNS import LNS
 
 
 def main():
+    comm = MPI.COMM_WORLD
+    # size = comm.Get_size()
+    rank = comm.Get_rank()
+
     data_dir = 'Data/cavity_test/'
     mesh = OfMesh(data_dir, '1/C', '1/V', '1/U', '1/p')
     ave_field = OfData(data_dir, '1/UMean', '1/pMean', '1/rhoMean', add_e=True, add_temp=True)
+
     linear_ns = LNS(mesh, ave_field, 1.84e-5, 0.7, is2d=True)  # viscosity and Prandtl number
 
-    mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field.n_val, ave_field)
+    mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field.n_val, ave_field, mpi_comm=comm)
     operator = mat_maker.get_mat()
-    sparse.save_npz('matO.npz', operator)
+
+    if rank == 0:
+        sparse.save_npz('matO.npz', operator)
 
 
 if __name__ == '__main__':

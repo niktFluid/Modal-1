@@ -10,6 +10,17 @@ from Variables import Variables
 
 class MatMaker:
     def __init__(self, target, n_cell, n_val, ave_field=None, mpi_comm=None):
+        self._comm = mpi_comm
+        if mpi_comm is not None:
+            self._size = mpi_comm.Get_size()
+            self._rank = mpi_comm.Get_rank()
+            self._mpi = True
+        else:
+            self._size = 1
+            self._rank = 0
+            self._mpi = False
+        self._leader = (self._mpi and self._rank == 0) or not self._mpi
+
         self.n_cell = n_cell
         self.n_val = n_val
         self.n_size_in = n_cell * n_val
@@ -22,22 +33,16 @@ class MatMaker:
         self.n_return = self._variables.n_return
         self.n_size_out = n_cell * self.n_return
 
-        self.operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
+        if self._leader:
+            self.operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
+        else:
+            self.operator = None
 
         if ave_field is None:
             n_val_ph = 5  # rho, u, v, w, pressure
         else:
             n_val_ph = 7  # add energy and temperature
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
-
-        self._comm = mpi_comm
-        self._size = 0
-        self._rank = 0
-        self._mpi = False
-        if mpi_comm is not None:
-            self._mpi = True
-            self._size = mpi_comm.Get_size()
-            self._rank = mpi_comm.Get_rank()
 
     def _check_target(self):
         if not issubclass(self._variables, Variables):
@@ -46,14 +51,30 @@ class MatMaker:
     def get_mat(self):
         t_start = time.time()
 
-        # for id_cell in range(5):
-        for id_cell in range(self.n_cell):
-            self._set_mat_for_cell(id_cell)
-            self._print_progress(id_cell, t_start)
+        i_start = self._rank % self._size
+        i_step = self._size
+
+        val_array = np.empty((0, 5), dtype=np.float64)
+        for id_cell in range(i_start, self.n_cell, i_step):
+            for val in self._calc_values(id_cell):
+                np.append(val_array, val.reshape(1, 5), axis=0)
+            if self._leader:
+                self._print_progress(id_cell, t_start)
+
+        if self._mpi and self._rank == 0:
+            array_list = self._comm.gather(val_array, root=0)
+            self._set_mat(np.vstack(array_list))
+        elif not self._mpi:
+            self._set_mat(val_array)
+        else:
+            pass
 
         t_end = time.time() - t_start
-        print('Done. Elapsed time: {:.0f}'.format(t_end))
-        return csr_matrix(self.operator)
+        if self._leader:
+            print('Done. Elapsed time: {:.0f}'.format(t_end))
+            return csr_matrix(self.operator)
+        else:
+            return None
 
     def _print_progress(self, id_cell, t_start):
         interval = 10
@@ -65,28 +86,19 @@ class MatMaker:
             t_elapse = time.time() - t_start
             print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec]')
 
-    def _set_mat_for_cell(self, id_cell):
-        val_list = self._calc_sub(id_cell)
-        # print(val_list)
-
-        for id_val, ref_cell, ref_val, val in val_list:
+    def _set_mat(self, val_array):
+        for id_cell, id_val, ref_cell, ref_val, val in val_array:
             i_row = id_cell * self.n_return + id_val
             i_col = ref_cell * self.n_val + ref_val
             self.operator[i_row, i_col] = val
 
-    def _calc_sub(self, id_cell):
-        variables = self._variables
-        n_func_val = variables.n_return
-        ref_cells = variables.get_leaves(id_cell)
-        # print(ref_cells)
-
-        val_list = []
+    def _calc_values(self, id_cell):
+        ref_cells = self._variables.get_leaves(id_cell)
         for ref_cell, ref_val in itertools.product(ref_cells, range(self.n_val)):
             self._ph.set_ph(ref_cell, ref_val)
-            func_val = variables.formula(self._ph, id_cell)
-            for id_val in range(n_func_val):
-                val_list.append((id_val, ref_cell, ref_val, func_val[id_val]))
-        return val_list
+            func_val = self._variables.formula(self._ph, id_cell)
+            for id_val, val in enumerate(func_val):
+                yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
 
 
 class PlaceHolder:
