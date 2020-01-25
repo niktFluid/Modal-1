@@ -49,6 +49,8 @@ class MatMaker:
             raise TypeError
 
     def get_mat(self):
+        if self._leader:
+            print('Start calculation.')
         t_start = time.time()
 
         i_start = self._rank % self._size
@@ -57,39 +59,38 @@ class MatMaker:
         val_array = np.empty((0, 5), dtype=np.float64)
         for id_cell in range(i_start, self.n_cell, i_step):
             for val in self._calc_values(id_cell):
-                np.append(val_array, val.reshape(1, 5), axis=0)
+                val_array = np.append(val_array, val.reshape(1, 5), axis=0)
             if self._leader:
                 self._print_progress(id_cell, t_start)
 
-        if self._mpi and self._rank == 0:
+        if self._mpi:
+            self._comm.barrier()
             array_list = self._comm.gather(val_array, root=0)
-            self._set_mat(np.vstack(array_list))
-        elif not self._mpi:
-            self._set_mat(val_array)
         else:
-            pass
+            array_list = val_array
 
-        t_end = time.time() - t_start
         if self._leader:
-            print('Done. Elapsed time: {:.0f}'.format(t_end))
+            t_end = time.time() - t_start
+            print('Calculation done. Elapsed time: {:.0f} [sec.]. Exporting the operator...'.format(t_end))
+            self._set_mat(np.vstack(array_list))
+            print('Done.')
             return csr_matrix(self.operator)
         else:
             return None
 
     def _print_progress(self, id_cell, t_start):
         interval = 10
-
-        prog_0 = int(100.0 * (id_cell - 1) / self.n_cell)
         prog_1 = int(100.0 * id_cell / self.n_cell)
+        prog_0 = int(100.0 * (id_cell - self._size) / self.n_cell)
 
-        if prog_0 % interval == interval - 1 and prog_1 % interval == 0:
+        if int(prog_1 / interval) > int(prog_0 / interval):
             t_elapse = time.time() - t_start
-            print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec]')
+            print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec.]')
 
     def _set_mat(self, val_array):
         for id_cell, id_val, ref_cell, ref_val, val in val_array:
-            i_row = id_cell * self.n_return + id_val
-            i_col = ref_cell * self.n_val + ref_val
+            i_row = int(id_cell) * self.n_return + int(id_val)
+            i_col = int(ref_cell) * self.n_val + int(ref_val)
             self.operator[i_row, i_col] = val
 
     def _calc_values(self, id_cell):
