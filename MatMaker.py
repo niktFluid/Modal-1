@@ -33,11 +33,6 @@ class MatMaker:
         self.n_return = self._variables.n_return
         self.n_size_out = n_cell * self.n_return
 
-        if self._leader:
-            self.operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
-        else:
-            self.operator = None
-
         if ave_field is None:
             n_val_ph = 5  # rho, u, v, w, pressure
         else:
@@ -72,9 +67,7 @@ class MatMaker:
         if self._leader:
             t_end = time.time() - t_start
             print('Calculation done. Elapsed time: {:.0f} [sec.]. Exporting the operator...'.format(t_end))
-            self._set_mat(np.vstack(array_list))
-            print('Done.')
-            return csr_matrix(self.operator)
+            return self._set_mat(np.vstack(array_list))
         else:
             return None
 
@@ -88,10 +81,14 @@ class MatMaker:
             print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec.]')
 
     def _set_mat(self, val_array):
+        operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
+
         for id_cell, id_val, ref_cell, ref_val, val in val_array:
             i_row = int(id_cell) * self.n_return + int(id_val)
             i_col = int(ref_cell) * self.n_val + int(ref_val)
-            self.operator[i_row, i_col] = val
+            operator[i_row, i_col] = val
+
+        return csr_matrix(operator)
 
     def _calc_values(self, id_cell):
         ref_cells = self._variables.get_leaves(id_cell)
@@ -99,7 +96,8 @@ class MatMaker:
             self._ph.set_ph(ref_cell, ref_val)
             func_val = self._variables.formula(self._ph, id_cell)
             for id_val, val in enumerate(func_val):
-                yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
+                if val != 0.0:
+                    yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
 
 
 class PlaceHolder:

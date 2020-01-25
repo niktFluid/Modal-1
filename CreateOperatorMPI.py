@@ -18,9 +18,10 @@ def main():
     # size = comm.Get_size()
     rank = comm.Get_rank()
 
-    data_dir = 'Data/cavity_test/'
-    mesh = OfMesh(data_dir, '1/C', '1/V', '1/U', '1/p')
-    ave_field = OfData(data_dir, '1/UMean', '1/pMean', '1/rhoMean', add_e=True, add_temp=True)
+    case_dir = '/mnt/data/OpenFOAM/CylinderNoise/'
+    data_dir = '499.992868672869065/'
+    mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
+    ave_field = OfData(case_dir + data_dir, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 
     linear_ns = LNS(mesh, ave_field, 1.84e-5, 0.7, is2d=True)  # viscosity and Prandtl number
 
