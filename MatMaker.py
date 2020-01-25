@@ -9,7 +9,7 @@ from Variables import Variables
 
 
 class MatMaker:
-    def __init__(self, target, n_cell, n_val, ave_field=None):
+    def __init__(self, target, n_cell, n_val, ave_field=None, mpi_comm=None):
         self.n_cell = n_cell
         self.n_val = n_val
         self.n_size_in = n_cell * n_val
@@ -29,6 +29,15 @@ class MatMaker:
         else:
             n_val_ph = 7  # add energy and temperature
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
+
+        self._comm = mpi_comm
+        self._size = 0
+        self._rank = 0
+        self._mpi = False
+        if mpi_comm is not None:
+            self._mpi = True
+            self._size = mpi_comm.Get_size()
+            self._rank = mpi_comm.Get_rank()
 
     def _check_target(self):
         if not issubclass(self._variables, Variables):
@@ -134,11 +143,11 @@ class PlaceHolder:
         v_ave = ave[i_cell, 2]
         w_ave = ave[i_cell, 3]
 
-        term_1 = g2 * p
-        term_2 = 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
-        term_3 = rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+        e = g2 * p
+        e += 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+        e += rho_ave * (u * u_ave + v * v_ave + w * w_ave)
 
-        return term_1 + term_2 + term_3
+        return e
 
     def _calc_temperature(self, i_cell):
         # for temperature variation
@@ -151,7 +160,7 @@ class PlaceHolder:
         rho_ave = ave[i_cell, 0]
         p_ave = ave[i_cell, 4]
 
-        term_1 = g1 * p / rho_ave
-        term_2 = g1 * p_ave * rho / (rho_ave * rho_ave)
+        t = g1 * p / rho_ave
+        t += g1 * p_ave * rho / (rho_ave * rho_ave)
 
-        return term_1 - term_2
+        return t

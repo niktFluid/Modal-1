@@ -7,7 +7,7 @@ from Functions.Gradient import Gradient
 
 
 class LNS(Variables):  # Linearized Navier-Stokes equations
-    def __init__(self, mesh, ave_field, mu, pr):
+    def __init__(self, mesh, ave_field, mu, pr, is2d=False):
         self.gamma = 1.4
         self.gamma_1 = 1.0 / (1.4 - 1.0)
         self.mu = mu
@@ -17,7 +17,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.mesh = mesh
         self.bd_cond = BDcond(mesh)
 
-        self._grad = Gradient(mesh)
+        self._grad = Gradient(mesh, is2d=is2d)
         sub_list = [self._grad]
 
         super(LNS, self).__init__(mesh, n_return=5, sub_list=sub_list)
@@ -138,8 +138,8 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         v = vec_pr[2]
         w = vec_pr[3]
         vec_pr[4] = 0.4 * e
-        vec_pr[4] -= - 0.4 * 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
-        vec_pr[4] -= - 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+        vec_pr[4] += - 0.4 * 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+        vec_pr[4] += - 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
 
         return vec_pr
 

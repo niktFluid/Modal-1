@@ -76,7 +76,7 @@ class Gradient(Variables):
         if id_k >= 0:  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
         elif self.is2d and id_k == self.bd_cond.id_empty:
-            return np.zeros(data.shape[1], dtype=np.float64)
+            return 0.0
         else:  # For boundary cells
             val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face, id_k)
             return val_bd[id_val] - vec_0[id_val]
