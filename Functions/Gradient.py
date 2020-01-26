@@ -3,8 +3,8 @@ import numpy as np
 from scipy import linalg
 # from scipy.sparse import csr_matrix
 
-from BoundaryCondition import BoundaryCondition as BDcond
-from Variables import Variables
+from Functions.BoundaryCondition import BoundaryCondition as BDcond
+from Functions.Variables import Variables
 
 
 class Gradient(Variables):

@@ -1,8 +1,8 @@
 from itertools import product
 import numpy as np
 
-from Variables import Variables
-from BoundaryCondition import BoundaryCondition as BDcond
+from Functions.Variables import Variables
+from Functions.BoundaryCondition import BoundaryCondition as BDcond
 from Functions.Gradient import Gradient
 
 

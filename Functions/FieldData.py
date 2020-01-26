@@ -14,7 +14,6 @@ class FieldData:
     def _init_field(self, *args, **kwargs):
         raise NotImplementedError
 
-    # noinspection PyTypeChecker
     def vis_tecplot(self, file_name='Default.dat'):
         header = self._make_tec_header()
 
@@ -46,6 +45,56 @@ class FieldData:
         header += 'VARLOCATION=([4-' + str(self.n_val + 3) + ']=CELLCENTERED) \n'
         return header
 
+    def _make_connectivity(self):
+        # We should arrange this subroutine for clarify.
+        mesh = self.mesh
+        for faces in mesh.cell_faces:
+            nodes = set(sum([mesh.face_nodes[x] for x in faces], []))
+
+            id_0 = faces[0]  # Face ID of a base face.
+            fn_0 = set(mesh.face_nodes[id_0])  # Node IDs of the base face.
+            fn_o = nodes - fn_0  # Node IDs of a face which is on the opposite side of the cell.
+            id_o = self._find_opposite(faces, fn_o)  # Find the face ID of the opposite face.
+
+            face_nodes_0 = mesh.face_nodes[id_0]  # Node list of the base face.
+            # Arrange the node list of the opposite face to meet connectivity.
+            face_nodes_op = self._find_connection(id_0, id_o, faces)
+
+            def add_1(x):  # Node number starts from '1' in the TecPlot format.
+                return x + 1
+            yield list(map(add_1, face_nodes_0)) + list(map(add_1, face_nodes_op))
+
+    def _find_opposite(self, face_list, fn_set):
+        for i_fn in face_list:
+            i_fn_set = set(self.mesh.face_nodes[i_fn])
+            if fn_set == i_fn_set:
+                return i_fn
+
+    def _find_connection(self, id_base, id_opposite, faces):
+        nodes_0 = self.mesh.face_nodes[id_base]
+        side_0 = set(nodes_0[0:2])
+
+        i_nb = -1
+        for i_face in set(faces) - {id_base, id_opposite}:
+            node_set = set(self.mesh.face_nodes[i_face])
+            if len(side_0 & node_set) == 2:
+                i_nb = i_face
+        nodes_nb = self.mesh.face_nodes[i_nb]
+
+        nb_0 = nodes_nb.index(nodes_0[0])
+        i_corner = nodes_nb[nb_0 - 2]
+        last_node = set(nodes_nb) - side_0 - {i_corner}
+        i_next_0 = last_node.pop()
+        side_opposite = [i_next_0, i_corner]
+
+        nodes_op = self.mesh.face_nodes[id_opposite]
+        for i_rotation in range(3):
+            for i_shift in range(len(nodes_op)):
+                shifted_list = nodes_op[-i_shift:] + nodes_op[:-i_shift]
+                if shifted_list[0:2] == side_opposite:
+                    return shifted_list
+            nodes_op.reverse()
+
     @staticmethod
     def _make_write_list(data, n_line=8):
         n_data = data.size
@@ -62,9 +111,6 @@ class FieldData:
         last_data = w_data[i_end:]
         if not len(last_data) == 0:
             yield last_data
-
-    def _make_connectivity(self):
-        raise NotImplementedError
 
 
 class FlowData(FieldData):
@@ -137,53 +183,3 @@ class OfData(FlowData):
         self.n_cell = u_data.shape[0]
 
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
-
-    def _find_opposite(self, face_list, fn_set):
-        for i_fn in face_list:
-            i_fn_set = set(self.mesh.face_nodes[i_fn])
-            if fn_set == i_fn_set:
-                return i_fn
-
-    def _find_connection(self, id_base, id_opposite, faces):
-        nodes_0 = self.mesh.face_nodes[id_base]
-        side_0 = set(nodes_0[0:2])
-
-        i_nb = -1
-        for i_face in set(faces) - {id_base, id_opposite}:
-            node_set = set(self.mesh.face_nodes[i_face])
-            if len(side_0 & node_set) == 2:
-                i_nb = i_face
-        nodes_nb = self.mesh.face_nodes[i_nb]
-
-        nb_0 = nodes_nb.index(nodes_0[0])
-        i_corner = nodes_nb[nb_0 - 2]
-        last_node = set(nodes_nb) - side_0 - {i_corner}
-        i_next_0 = last_node.pop()
-        side_opposite = [i_next_0, i_corner]
-
-        nodes_op = self.mesh.face_nodes[id_opposite]
-        for i_rotation in range(3):
-            for i_shift in range(len(nodes_op)):
-                shifted_list = nodes_op[-i_shift:] + nodes_op[:-i_shift]
-                if shifted_list[0:2] == side_opposite:
-                    return shifted_list
-            nodes_op.reverse()
-
-    def _make_connectivity(self):
-        # We should arrange this subroutine for clarify.
-        mesh = self.mesh
-        for faces in mesh.cell_faces:
-            nodes = set(sum([mesh.face_nodes[x] for x in faces], []))
-
-            id_0 = faces[0]  # Face ID of a base face.
-            fn_0 = set(mesh.face_nodes[id_0])  # Node IDs of the base face.
-            fn_o = nodes - fn_0  # Node IDs of a face which is on the opposite side of the cell.
-            id_o = self._find_opposite(faces, fn_o)  # Find the face ID of the opposite face.
-
-            face_nodes_0 = mesh.face_nodes[id_0]  # Node list of the base face.
-            # Arrange the node list of the opposite face to meet connectivity.
-            face_nodes_op = self._find_connection(id_0, id_o, faces)
-
-            def add_1(x):  # Node number starts from '1' in the TecPlot format.
-                return x + 1
-            yield list(map(add_1, face_nodes_0)) + list(map(add_1, face_nodes_op))

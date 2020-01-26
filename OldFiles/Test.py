@@ -1,10 +1,10 @@
-from Mesh import OfMesh
-from FieldData import OfData
+from Functions.Mesh import OfMesh
+from Functions.FieldData import OfData
 
-from MatMaker import MatMaker
+from Functions.MatMaker import MatMaker
 # from MatMaker import TargetEq
 
-from BoundaryCondition import BoundaryCondition as BDcond
+from Functions.BoundaryCondition import BoundaryCondition as BDcond
 from Functions.Gradient import Gradient
 
 

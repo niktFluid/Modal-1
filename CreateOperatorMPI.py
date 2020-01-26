@@ -2,10 +2,10 @@ from mpi4py import MPI
 
 from scipy import sparse
 
-from Mesh import OfMesh
-from FieldData import OfData
+from Functions.Mesh import OfMesh
+from Functions.FieldData import OfData
 
-from MatMaker import MatMaker
+from Functions.MatMaker import MatMaker
 # from MatMaker import TargetEq
 
 # from BoundaryCondition import BoundaryCondition as BDcond
@@ -23,7 +23,7 @@ def main():
     # case_dir = 'Data/cavity_test/'
     # data_dir = '1/'
     mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
-    ave_field = OfData(case_dir + data_dir, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
+    ave_field = OfData(mesh, case_dir + data_dir, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 
     linear_ns = LNS(mesh, ave_field, 1.84e-5, 0.7, is2d=True)  # viscosity and Prandtl number
 

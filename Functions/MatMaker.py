@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 from scipy.sparse import lil_matrix, csr_matrix
 
-from Variables import Variables
+from Functions.Variables import Variables
 # from Functions.Identity import Identity
 
 
