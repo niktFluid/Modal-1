@@ -13,7 +13,7 @@ class Variables:
         self.n_return = n_return
 
     def get_leaves(self, id_cell):
-        my_ref_cells = self.return_ref_cells(id_cell)
+        my_ref_cells = self._return_ref_cells(id_cell)
 
         sub_ref_cells = []
         if self._sub_list is not None:
@@ -27,8 +27,5 @@ class Variables:
     def formula(self, data, id_cell, **kwargs):
         raise NotImplementedError
 
-    def return_ref_cells(self, id_cell):
+    def _return_ref_cells(self, id_cell):
         raise NotImplementedError
-
-    def _boundary_basic(self):
-        pass

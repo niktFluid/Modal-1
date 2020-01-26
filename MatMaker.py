@@ -19,18 +19,14 @@ class MatMaker:
             self._size = 1
             self._rank = 0
             self._mpi = False
-        self._leader = (self._mpi and self._rank == 0) or not self._mpi
+        self._is_root = self._rank == 0
 
         self.n_cell = n_cell
         self.n_val = n_val
         self.n_size_in = n_cell * n_val
 
-        # self.mesh = mesh
-        # self.flow_data = flow_data
-
-        self._variables = target
-        # self._check_target()
-        self.n_return = self._variables.n_return
+        self._target = target
+        self.n_return = self._target.n_return
         self.n_size_out = n_cell * self.n_return
 
         if ave_field is None:
@@ -40,12 +36,12 @@ class MatMaker:
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
 
     def _check_target(self):
-        if not issubclass(self._variables, Variables):
+        if not issubclass(self._target, Variables):
             raise TypeError
 
     def get_mat(self):
-        if self._leader:
-            print('Start calculation.')
+        if self._is_root:
+            print('Calculation start.')
         t_start = time.time()
 
         i_start = self._rank % self._size
@@ -55,8 +51,12 @@ class MatMaker:
         for id_cell in range(i_start, self.n_cell, i_step):
             for val in self._calc_values(id_cell):
                 val_array = np.append(val_array, val.reshape(1, 5), axis=0)
-            if self._leader:
+            if self._is_root:
                 self._print_progress(id_cell, t_start)
+
+        if self._is_root:
+            t_end = time.time() - t_start
+            print('Calculation done. Elapsed time: {:.0f} [sec.]. Exporting the operator...'.format(t_end))
 
         if self._mpi:
             self._comm.barrier()
@@ -64,9 +64,8 @@ class MatMaker:
         else:
             array_list = val_array
 
-        if self._leader:
-            t_end = time.time() - t_start
-            print('Calculation done. Elapsed time: {:.0f} [sec.]. Exporting the operator...'.format(t_end))
+        if self._is_root:
+            print('Done.')
             return self._set_mat(np.vstack(array_list))
         else:
             return None
@@ -81,6 +80,7 @@ class MatMaker:
             print(str(prog_1) + ' %, Elapsed time: {:.0f}'.format(t_elapse) + ' [sec.]')
 
     def _set_mat(self, val_array):
+        # print(val_array.shape)
         operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
 
         for id_cell, id_val, ref_cell, ref_val, val in val_array:
@@ -91,10 +91,10 @@ class MatMaker:
         return csr_matrix(operator)
 
     def _calc_values(self, id_cell):
-        ref_cells = self._variables.get_leaves(id_cell)
+        ref_cells = self._target.get_leaves(id_cell)
         for ref_cell, ref_val in itertools.product(ref_cells, range(self.n_val)):
             self._ph.set_ph(ref_cell, ref_val)
-            func_val = self._variables.formula(self._ph, id_cell)
+            func_val = self._target.formula(self._ph, id_cell)
             for id_val, val in enumerate(func_val):
                 if val != 0.0:
                     yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
@@ -157,7 +157,6 @@ class PlaceHolder:
         e = g2 * p
         e += 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
         e += rho_ave * (u * u_ave + v * v_ave + w * w_ave)
-
         return e
 
     def _calc_temperature(self, i_cell):
@@ -173,5 +172,4 @@ class PlaceHolder:
 
         t = g1 * p / rho_ave
         t += g1 * p_ave * rho / (rho_ave * rho_ave)
-
         return t

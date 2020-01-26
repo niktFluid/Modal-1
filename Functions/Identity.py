@@ -6,7 +6,7 @@ class Identity(Variables):
     def __init__(self, mesh):
         super(Identity, self).__init__(mesh)
 
-    def return_ref_cells(self, id_cell):
+    def _return_ref_cells(self, id_cell):
         return [id_cell]
 
     def formula(self, ph, id_cell, id_val=0, **kwargs):

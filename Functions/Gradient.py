@@ -22,7 +22,7 @@ class Gradient(Variables):
         self.matLU2 = np.zeros((n_cell, 3), dtype=np.float64)
         self._set_left_mat()
 
-    def return_ref_cells(self, id_cell):
+    def _return_ref_cells(self, id_cell):
         cell_list = [id_cell] + self.mesh.cell_neighbours(id_cell)
         ref_cells = [i_cell for i_cell in cell_list if i_cell >= 0]
 
@@ -62,9 +62,6 @@ class Gradient(Variables):
 
         val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
         rhs_vec = np.zeros(3, np.float64)
-        # val_vec = np.empty(data.shape[1], dtype=np.float64)
-        # for i_val in range(data.shape[1]):
-        #     val_vec[i_val] = data[id_cell, i_val]
 
         for id_nb, id_face in zip(nb_cells, faces):
             vec_lr = self._get_pos_diff(id_cell, id_nb, id_face)
@@ -75,8 +72,11 @@ class Gradient(Variables):
     def _get_val_diff(self, data, vec_0, id_k, id_k_face, id_val):
         if id_k >= 0:  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
-        elif self.is2d and id_k == self.bd_cond.id_empty:
-            return 0.0
         else:  # For boundary cells
-            val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face, id_k)
-            return val_bd[id_val] - vec_0[id_val]
+            boundary = self.mesh.get_bd_tuple(id_k_face)
+            bd_type = boundary.type
+            if self.is2d and bd_type == self.bd_cond.empty:
+                return 0.0
+            else:
+                val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
+                return val_bd[id_val] - vec_0[id_val]

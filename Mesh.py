@@ -54,18 +54,11 @@ class Mesh:
     def cell_neighbours(self, id_cell):
         return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
 
-    def get_bd_id(self, id_face):
-        id_bd = None
-
-        for i_bd, bd_data in enumerate(self.boundary):
-            i_start = bd_data.i_start
-            num = bd_data.num
-
-            if i_start <= id_face < i_start + num:
-                id_bd = i_bd
-                break
-
-        return id_bd
+    def get_bd_tuple(self, id_face):
+        for bd_data in self.boundary:
+            if bd_data.i_start <= id_face < bd_data.i_start + bd_data.num:
+                return bd_data
+        return None
 
     def conv_vel(self, val_vec, id_face, inverse=False):
         face_mat = self.face_mat[id_face]

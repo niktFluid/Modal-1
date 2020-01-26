@@ -25,7 +25,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self._ave_field = ave_field
         self._grad_ave = self._grad_ave_field()
 
-    def return_ref_cells(self, id_cell):
+    def _return_ref_cells(self, id_cell):
         cell_list = [id_cell] + self.mesh.cell_neighbours(id_cell)
         ref_cells = [i_cell for i_cell in cell_list if i_cell >= 0]
 
@@ -156,7 +156,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         if nb_cell >= 0:  # For inner cells
             val_vec_nb = get_vals(nb_cell)
         else:  # For boundary cells
-            val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face, nb_cell)
+            val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face)
 
         return val_vec_0, val_vec_nb
 

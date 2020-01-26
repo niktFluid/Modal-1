@@ -20,6 +20,8 @@ def main():
 
     case_dir = '/mnt/data/OpenFOAM/CylinderNoise/'
     data_dir = '499.992868672869065/'
+    # case_dir = 'Data/cavity_test/'
+    # data_dir = '1/'
     mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
     ave_field = OfData(case_dir + data_dir, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 
