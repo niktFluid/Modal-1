@@ -25,13 +25,13 @@ def main():
     mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
     ave_field = OfData(mesh, case_dir + data_dir, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 
-    linear_ns = LNS(mesh, ave_field, 1.84e-5, 0.7, is2d=True)  # viscosity and Prandtl number
+    linear_ns = LNS(mesh, ave_field, mu=1.333333e-3, pr=0.7, is2d=True)  # viscosity and Prandtl number
 
-    mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field.n_val, ave_field, mpi_comm=comm)
+    mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field=ave_field, mpi_comm=comm)
     operator = mat_maker.get_mat()
 
     if rank == 0:
-        sparse.save_npz('matO.npz', operator)
+        sparse.save_npz('matL_Cylinder-0.npz', operator)
 
 
 if __name__ == '__main__':

@@ -16,6 +16,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         self.mesh = mesh
         self.bd_cond = BDcond(mesh)
+        # self._vol_weight = mesh.volumes / np.sum(mesh.volumes)
 
         self._grad = Gradient(mesh, is2d=is2d)
         sub_list = [self._grad]
@@ -40,10 +41,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             area = self.mesh.face_area[nb_face]
             flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
 
-            rhs_vec += self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face) * area * flip
+            rhs_vec -= self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face) * area * flip
             rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face) * area * flip
-
-        return self._conv2prime(rhs_vec, id_cell)
+        return self._conv2prime(rhs_vec, id_cell) / self.mesh.volumes[id_cell]
 
     def _grad_ave_field(self):
         grad = self._grad
@@ -54,7 +54,6 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         grad_ave = np.empty((n_cell, n_val, 3), dtype=np.float64)
         for i_cell, i_val in product(range(n_cell), range(n_val)):
             grad_ave[i_cell, i_val] = grad.formula(data, i_cell, i_val)
-
         return grad_ave
 
     def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):

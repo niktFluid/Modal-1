@@ -3,7 +3,12 @@ import Ofpp
 
 
 class FieldData:
-    def __init__(self, mesh, n_val=5):
+    def __init__(self, mesh, n_val=5, data_list=None):
+        if data_list is None:
+            self.data_list = ['rho', 'u', 'v', 'w', 'p']
+        else:
+            self.data_list = data_list
+
         self.mesh = mesh
         self.n_val = n_val
         self.n_cell = mesh.n_cell
@@ -15,16 +20,15 @@ class FieldData:
         raise NotImplementedError
 
     def vis_tecplot(self, file_name='Default.dat'):
-        header = self._make_tec_header()
-
         def conv_str(x):
             return str(x) + ' '
 
-        def write_data(w_data):
-            for w_list in self._make_write_list(w_data):
-                file_obj.writelines(list(map(conv_str, w_list)) + ['\n'])
-
+        header = self._make_tec_header()
         with open(file_name, mode='w') as file_obj:
+            def write_data(w_data):
+                for w_list in self._make_write_list(w_data):
+                    file_obj.writelines(list(map(conv_str, w_list)) + ['\n'])
+
             file_obj.write(header)
             for ind in range(3):
                 write_data(self.mesh.nodes[:, ind])
@@ -36,7 +40,7 @@ class FieldData:
 
     def _make_tec_header(self):
         header = 'Title = "Data" \n'
-        header += 'Variables = "x", "y", "z", "density", "u_vel", "v_vel", "w_vel", "pressure" \n'
+        header += 'Variables = "x", "y", "z", ' + ', '.join(['"' + x + '"' for x in self.data_list]) + '\n'
         header += 'Zone T = "Fluid area" \n'
         # header += 'StrandID=1, SolutionTime=' + str(self.sol_time) + ' \n'
         header += 'Nodes=' + str(self.mesh.n_node) + ' \n'
@@ -125,11 +129,9 @@ class FlowData(FieldData):
     def _init_field(self, *args, **kwargs):
         raise NotImplementedError
 
-    def _make_connectivity(self):
-        raise NotImplementedError
-
     def _add_energy(self):
         self.n_val += 1
+        self.data_list.append('e')
 
         data = self.data
         rho = data[:, 0]
@@ -145,6 +147,7 @@ class FlowData(FieldData):
 
     def _add_temperature(self):
         self.n_val += 1
+        self.data_list.append('T')
 
         data = self.data
         rho = data[:, 0]

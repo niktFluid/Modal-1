@@ -9,7 +9,7 @@ from Functions.Variables import Variables
 
 
 class MatMaker:
-    def __init__(self, target, n_cell, n_val, ave_field=None, mpi_comm=None):
+    def __init__(self, target, n_cell, n_val=5, ave_field=None, mpi_comm=None):
         self._comm = mpi_comm
         if mpi_comm is not None:
             self._size = mpi_comm.Get_size()
@@ -84,8 +84,8 @@ class MatMaker:
         operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
 
         for id_cell, id_val, ref_cell, ref_val, val in val_array:
-            i_row = int(id_cell) * self.n_return + int(id_val)
-            i_col = int(ref_cell) * self.n_val + int(ref_val)
+            i_row = int(id_cell) + int(id_val) * self.n_cell
+            i_col = int(ref_cell) + int(ref_val) * self.n_cell
             operator[i_row, i_col] = val
 
         return csr_matrix(operator)
