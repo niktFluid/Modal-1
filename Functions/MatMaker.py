@@ -2,6 +2,7 @@ import time
 
 import itertools
 import numpy as np
+from scipy import sparse
 from scipy.sparse import lil_matrix, csr_matrix
 
 from Functions.Variables import Variables
@@ -29,6 +30,8 @@ class MatMaker:
         self.n_return = self._target.n_return
         self.n_size_out = n_cell * self.n_return
 
+        self.operator = None
+
         if ave_field is None:
             n_val_ph = 5  # rho, u, v, w, pressure
         else:
@@ -39,7 +42,7 @@ class MatMaker:
         if not issubclass(self._target, Variables):
             raise TypeError
 
-    def get_mat(self):
+    def make_mat(self):
         if self._is_root:
             print('Calculation start.')
         t_start = time.time()
@@ -56,7 +59,7 @@ class MatMaker:
 
         if self._is_root:
             t_end = time.time() - t_start
-            print('Calculation done. Elapsed time: {:.0f} [sec.]. Exporting the operator...'.format(t_end))
+            print('Calculation done. Elapsed time: {:.0f} [sec.].'.format(t_end))
 
         if self._mpi:
             self._comm.barrier()
@@ -65,10 +68,16 @@ class MatMaker:
             array_list = val_array
 
         if self._is_root:
-            print('Done.')
-            return self._set_mat(np.vstack(array_list))
-        else:
-            return None
+            self._set_mat(np.vstack(array_list))
+
+    def _calc_values(self, id_cell):
+        ref_cells = self._target.get_leaves(id_cell)
+        for ref_cell, ref_val in itertools.product(ref_cells, range(self.n_val)):
+            self._ph.set_ph(ref_cell, ref_val)
+            func_val = self._target.formula(self._ph, id_cell)
+            for id_val, val in enumerate(func_val):
+                if val != 0.0:
+                    yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
 
     def _print_progress(self, id_cell, t_start):
         interval = 10
@@ -82,22 +91,14 @@ class MatMaker:
     def _set_mat(self, val_array):
         # print(val_array.shape)
         operator = lil_matrix((self.n_size_out, self.n_size_in), dtype=np.float64)
-
         for id_cell, id_val, ref_cell, ref_val, val in val_array:
             i_row = int(id_cell) + int(id_val) * self.n_cell
             i_col = int(ref_cell) + int(ref_val) * self.n_cell
             operator[i_row, i_col] = val
+        self.operator = csr_matrix(operator)
 
-        return csr_matrix(operator)
-
-    def _calc_values(self, id_cell):
-        ref_cells = self._target.get_leaves(id_cell)
-        for ref_cell, ref_val in itertools.product(ref_cells, range(self.n_val)):
-            self._ph.set_ph(ref_cell, ref_val)
-            func_val = self._target.formula(self._ph, id_cell)
-            for id_val, val in enumerate(func_val):
-                if val != 0.0:
-                    yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
+    def save_mat(self, filename='matL.npz'):
+        sparse.save_npz(filename, self.operator)
 
 
 class PlaceHolder:

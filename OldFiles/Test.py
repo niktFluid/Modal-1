@@ -17,4 +17,4 @@ bd_cond = BDcond(mesh)
 target_eq = Gradient(mesh, field, bd_cond, axis=0)
 mat_maker = MatMaker(mesh.n_cell, field.n_val, target_eq)
 
-operator_test = mat_maker.get_mat()
+operator_test = mat_maker.make_mat()

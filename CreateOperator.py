@@ -18,7 +18,7 @@ def main():
     linear_ns = LNS(mesh, ave_field, 1.84e-5, 0.7, is2d=True)  # viscosity and Prandtl number
 
     mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field.n_val, ave_field)
-    operator = mat_maker.get_mat()
+    operator = mat_maker.make_mat()
     sparse.save_npz('matO.npz', operator)
 
 

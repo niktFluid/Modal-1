@@ -8,12 +8,13 @@ from Functions.FieldData import FieldData
 
 
 class ModalData(FieldData):
-    def __init__(self, mesh, operator, n_val=5, k=10, **kwargs):  # kwargs for set up the operator.
+    def __init__(self, mesh, operator_name='matL.npz', n_val=5, k=10, **kwargs):  # kwargs for set up the operator.
         self._k = k
         self._n_q = n_val
 
         super(ModalData, self).__init__(mesh, n_val=self._data_num(), data_list=self._data_name_list())
 
+        operator = sparse.load_npz(operator_name)
         self.operator = self._set_operator(operator, **kwargs)
         self._vec_data = None
 
