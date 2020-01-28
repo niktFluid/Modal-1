@@ -20,14 +20,11 @@ class FieldData:
         raise NotImplementedError
 
     def vis_tecplot(self, file_name='Default.dat'):
-        def conv_str(x):
-            return str(x) + ' '
-
         header = self._make_tec_header()
         with open(file_name, mode='w') as file_obj:
             def write_data(w_data):
                 for w_list in self._make_write_list(w_data):
-                    file_obj.writelines(list(map(conv_str, w_list)) + ['\n'])
+                    file_obj.writelines(list(map(lambda x: str(x) + ' ', w_list)) + ['\n'])
 
             file_obj.write(header)
             for ind in range(3):
@@ -35,7 +32,7 @@ class FieldData:
             for ind in range(self.n_val):
                 write_data(self.data[:, ind])
             for connectivity in self._make_connectivity():
-                c_list = list(map(conv_str, connectivity))
+                c_list = list(map(lambda x: str(x) + ' ', connectivity))
                 file_obj.writelines(c_list + ['\n'])
 
     def _make_tec_header(self):
@@ -64,9 +61,8 @@ class FieldData:
             # Arrange the node list of the opposite face to meet connectivity.
             face_nodes_op = self._find_connection(id_0, id_o, faces)
 
-            def add_1(x):  # Node number starts from '1' in the TecPlot format.
-                return x + 1
-            yield list(map(add_1, face_nodes_0)) + list(map(add_1, face_nodes_op))
+            # Node number starts from '1' in the TecPlot format.
+            yield list(map(lambda x: x + 1, face_nodes_0)) + list(map(lambda x: x + 1, face_nodes_op))
 
     def _find_opposite(self, face_list, fn_set):
         for i_fn in face_list:
@@ -184,5 +180,4 @@ class OfData(FlowData):
         rho_data = Ofpp.parse_internal_field(self.path_dir + path_rho)
 
         self.n_cell = u_data.shape[0]
-
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))

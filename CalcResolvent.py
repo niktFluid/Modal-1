@@ -1,7 +1,7 @@
 from scipy import sparse
 
 from Functions.Mesh import OfMesh
-from Functions.ModalAnalysis import LinearStabilityMode as LSMode
+from Functions.ModalAnalysis import ResolventMode as Resolvent
 
 
 def main():
@@ -11,10 +11,10 @@ def main():
     mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
     operator = sparse.load_npz('matL_Cylinder-0.npz')
 
-    ls_mode = LSMode(mesh, operator, k=250, which='LR')
-    ls_mode.solve()
-    ls_mode.save_data('ls_modes_0.pickle')
-    ls_mode.vis_tecplot('ls_modes_0.dat')
+    resolvent_mode = Resolvent(mesh, operator, omega=0.25, k=6)
+    resolvent_mode.solve()
+    resolvent_mode.save_data('resolvent_modes_0.pickle')
+    resolvent_mode.vis_tecplot('resolvent_modes_0.dat')
 
 
 if __name__ == '__main__':
