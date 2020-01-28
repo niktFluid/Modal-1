@@ -8,7 +8,7 @@ from Functions.FieldData import FieldData
 class LSMode(FieldData):
     def __init__(self, mesh, operator, n_val=5, k=10, sigma=None, which='LM'):
         self.operator = operator
-        self._eig_options = {'k': k, 'sigma':sigma, 'which': which}
+        self._eig_options = {'k': k, 'sigma': sigma, 'which': which}
         self._n_values = n_val
 
         self.eigs = np.empty(k)

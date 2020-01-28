@@ -11,7 +11,7 @@ def main():
     mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
     operator = sparse.load_npz('matL_Cylinder-0.npz')
 
-    ls_mode = LSMode(mesh, operator, k=500, which='LR')
+    ls_mode = LSMode(mesh, operator, k=250, which='LR')
     ls_mode.solve()
     ls_mode.vis_tecplot('ls_mode_0.dat')
 
