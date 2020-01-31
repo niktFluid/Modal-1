@@ -1,0 +1,41 @@
+[GenerateOperatorDefault]
+CaseDir = Data/cavity_test/
+TimeDir = 1/
+Operator = Operators/matL.npz
+Viscosity = 1.0e-2
+PrandtlNumber = 0.7
+
+[StabilityDefault]
+CaseDir = Data/cavity_test/
+TimeDir = 1/
+Operator = Operators/matL.npz
+SaveName = Results/stability_modes
+ModeNum = 10
+# Sigma = 0.0+0.0j  # Access to non-exist parameter returns None.
+
+[ResolventDefault]
+CaseDir = Data/cavity_test/
+TimeDir = 1/
+Operator = Operators/matL.npz
+SaveName = Results/resolvent_mode
+ModeNum = 3
+Omega = 0.0
+Alpha = 0.0
+ResolventMode = Both
+
+[operator_cylinder-noise]
+CaseDir = /mnt/data/OpenFOAM/CylinderNoise/
+TimeDir = 499.992868672869065/
+Operator = Operators/matL_Cylinder-0.npz
+Viscosity = 1.3333333e-3
+PrandtlNumber = 0.7
+
+[res_cylinder_both]
+CaseDir = /mnt/data/OpenFOAM/CylinderNoise/
+TimeDir = 499.992868672869065/
+Operator = Operators/matL_Cylinder-0.npz
+SaveName = Results/cylinder_mode
+ModeNum = 3
+Omega = 0.25
+Alpha = 0.05
+ResolventMode = Both

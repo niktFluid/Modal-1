@@ -83,13 +83,14 @@ class LinearStabilityMode(ModalData):
 
 
 class ResolventMode(ModalData):
-    def __init__(self, mesh, ave_field, operator, omega, n_val=5, k=6, mode=None, **kwargs):
+    def __init__(self, mesh, ave_field, operator, omega, n_val=5, alpha=0.0, k=6, mode=None, **kwargs):
         self._ave_field = ave_field
         self.omega = omega
+        self.alpha = alpha
 
         self._mode = mode  # 'F' for the forcing mode or 'R' for the response mode. 'None' will get both.
-        self._mode_f = self._mode is None or self._mode == 'F'
-        self._mode_r = self._mode is None or self._mode == 'R'
+        self._mode_f = mode == 'Both' or mode == 'Forcing'
+        self._mode_r = mode == 'Both' or mode == 'Response'
 
         super(ResolventMode, self).__init__(mesh, operator, n_val, k, **kwargs)
 
@@ -112,21 +113,22 @@ class ResolventMode(ModalData):
     def _set_operator(self, operator, **kwargs):
         qi, qo = self._get_norm_quadrature()
         eye = sparse.eye(operator.shape[0], dtype=np.complex128, format='csc')
-        omegaI = 1.0j * (self.omega + 1.0j * 5.0e-2) * eye
+        omegaI = 1.0j * (self.omega + 1.0j * self.alpha) * eye
 
         return qo * (-omegaI - operator) * qi
 
     def _calculate(self, **kwargs):
         svs = None
-        matO = self.operator
         if self._mode_f:
-            svs, mode_f = linalg.eigsh(matO * matO.H, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            matF = self.operator * self.operator.H
+            svs, mode_f = linalg.eigsh(matF, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
             print('Eigenvalues for forcing: ', svs)
         else:
             mode_f = None
 
         if self._mode_r:
-            svs, mode_r = linalg.eigsh(matO.H * matO, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            matR = self.operator.H * self.operator
+            svs, mode_r = linalg.eigsh(matR, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
             print('Eigenvalues for response: ', svs)
         else:
             mode_r = None
