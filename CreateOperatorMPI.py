@@ -16,6 +16,8 @@ def MakeOperator(case_dir, time, filename, mu, pr):
     # data_dir = '499.992868672869065/'
     # case_dir = 'Data/cavity_test/'
     # data_dir = '1/'
+
+    # print('Initializing...')
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 

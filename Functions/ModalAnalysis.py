@@ -14,8 +14,7 @@ class ModalData(FieldData):
 
         super(ModalData, self).__init__(mesh, n_val=self._data_num(), data_list=self._data_name_list())
 
-        operator = sparse.load_npz(operator_name)
-        self.operator = self._set_operator(operator, **kwargs)
+        self.operator = self._set_operator(sparse.load_npz(operator_name), **kwargs)
         self._vec_data = None
 
     def _init_field(self, *args, **kwargs):
@@ -56,10 +55,10 @@ class LinearStabilityMode(ModalData):
         return self._n_q * self._k
 
     def _data_name_list(self):
-        data_list_base = ['rho', 'u', 'v', 'w', 'p']
+        data_list_base = ['rho', 'u', 'v', 'w', 'T']
         data_list = []
         for i_mode in range(self._k):
-            data_list.append(['mode{:0=4}_'.format(i_mode) + x for x in data_list_base])
+            data_list += ['mode{:0=4}_'.format(i_mode) + x for x in data_list_base]
         return data_list
 
     def _set_operator(self, operator, **kwargs):
@@ -72,6 +71,9 @@ class LinearStabilityMode(ModalData):
         eigs, vecs = data
         self._vec_data = [eigs, vecs]
 
+        # noinspection PyTypeChecker
+        np.savetxt('eigs.txt', np.vstack((np.real(eigs), np.imag(eigs))).T)
+
         for i_mode, vec in enumerate(vecs.T):
             i_start = self._n_q * i_mode
             i_end = self._n_q * (i_mode + 1)
@@ -81,53 +83,95 @@ class LinearStabilityMode(ModalData):
 
 
 class ResolventMode(ModalData):
-    def __init__(self, mesh, operator, omega, n_val=5, k=6, **kwargs):
+    def __init__(self, mesh, ave_field, operator, omega, n_val=5, k=6, mode=None, **kwargs):
+        self._ave_field = ave_field
         self.omega = omega
+
+        self._mode = mode  # 'F' for the forcing mode or 'R' for the response mode. 'None' will get both.
+        self._mode_f = self._mode is None or self._mode == 'F'
+        self._mode_r = self._mode is None or self._mode == 'R'
 
         super(ResolventMode, self).__init__(mesh, operator, n_val, k, **kwargs)
 
     def _data_num(self):
-        return self._n_q * self._k * 2
+        if self._mode is None:
+            return self._n_q * self._k * 2
+        else:
+            return self._n_q * self._k
 
     def _data_name_list(self):
-        data_list_base = ['rho', 'u', 'v', 'w', 'p']
+        data_list_base = ['rho', 'u', 'v', 'w', 'T']
         data_list = []
         for i_mode in range(self._k):
-            data_list.append(['forcing{:0=4}_'.format(i_mode) + x for x in data_list_base])
-            data_list.append(['response{:0=4}_'.format(i_mode) + x for x in data_list_base])
+            if self._mode_f:
+                data_list += ['forcing{:0=4}_'.format(i_mode) + x for x in data_list_base]
+            if self._mode_r:
+                data_list += ['response{:0=4}_'.format(i_mode) + x for x in data_list_base]
         return data_list
 
     def _set_operator(self, operator, **kwargs):
-        n_mat = operator.shape[0]
-
         qi, qo = self._get_norm_quadrature()
-        eye = sparse.eye(n_mat, dtype=np.float64, format='csr')
+        eye = sparse.eye(operator.shape[0], dtype=np.complex128, format='csc')
+        omegaI = 1.0j * (self.omega + 1.0j * 5.0e-2) * eye
 
-        return qo @ (-1j * self.omega * eye - operator) @ qi
+        return qo * (-omegaI - operator) * qi
 
     def _calculate(self, **kwargs):
-        return linalg.svds(self.operator, k=self._k, which='SM', **kwargs)
+        svs = None
+        matO = self.operator
+        if self._mode_f:
+            svs, mode_f = linalg.eigsh(matO * matO.H, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            print('Eigenvalues for forcing: ', svs)
+        else:
+            mode_f = None
+
+        if self._mode_r:
+            svs, mode_r = linalg.eigsh(matO.H * matO, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            print('Eigenvalues for response: ', svs)
+        else:
+            mode_r = None
+
+        print('Singular values: ', np.sqrt(np.real(svs)))
+        print('Gains: ', 1.0 / np.sqrt(np.real(svs)))
+        return mode_r, svs, mode_f
 
     def _set_data(self, data):
         r_vecs, svs, f_vecs = data
-        self._vec_data = [self.omega, 1.0 / svs, r_vecs, f_vecs]  # Freq, gain, response, forcing
+        self._vec_data = [self.omega, 1.0 / np.sqrt(np.real(svs)), r_vecs, f_vecs]  # Freq, gain, response, forcing
 
-        for i_mode, (f_vec, r_vec) in enumerate(zip(f_vecs.T, r_vecs.T)):
-            fw_vec = f_vec.reshape((self.n_cell, self._n_q), order='F')
-            rw_vec = r_vec.reshape((self.n_cell, self._n_q), order='F')
+        coef_ind_1 = 1 + int(self._mode is None)
+        coef_ind_2 = self._n_q * int(self._mode is None)
+        for i_mode in range(self._k):
+            if self._mode_f:
+                f_vec = f_vecs[:, i_mode]
+                fw_vec = f_vec.reshape((self.n_cell, self._n_q), order='F')
+                i_start = coef_ind_1 * self._n_q * i_mode
+                i_end = i_start + self._n_q
+                self.data[:, i_start:i_end] = np.real(fw_vec)
 
-            i_start = 2 * self._n_q * i_mode
-            i_end = 2 * self._n_q * (i_mode + 1)
-            self.data[:, i_start:i_end] = np.real(fw_vec)
-
-            i_start = 2 * self._n_q * i_mode + self._n_q
-            i_end = 2 * self._n_q * (i_mode + 1) + self._n_q
-            self.data[:, i_start:i_end] = np.real(rw_vec)
+            if self._mode_r:
+                r_vec = r_vecs[:, i_mode]
+                rw_vec = r_vec.reshape((self.n_cell, self._n_q), order='F')
+                i_start = coef_ind_1 * self._n_q * i_mode + coef_ind_2
+                i_end = i_start + self._n_q
+                self.data[:, i_start:i_end] = np.real(rw_vec)
 
     def _get_norm_quadrature(self):
-        diags = np.tile(self.mesh.volumes, self._n_q)
+        ave_data = self._ave_field.data
+        rho_data = ave_data[:, 0]
+        t_data = ave_data[:, 6]
 
-        qi = sparse.diags(1.0 / np.square(diags), format='csr')
-        qo = sparse.diags(np.square(diags), format='csr')
+        gamma = 1.4  # heat ratio
+        r_gas = 1.0 / 1.4  # Non-dimensionalized gas constant.
+
+        # Chu's energy norm.
+        vols = self.mesh.volumes / np.linalg.norm(self.mesh.volumes)
+        diag_rho = vols * r_gas * t_data / rho_data
+        diag_u = vols * rho_data
+        diag_t = vols * r_gas * rho_data / ((gamma - 1) * t_data)
+        diags = np.hstack((diag_rho, diag_u, diag_u, diag_u, diag_t))
+
+        qi = sparse.diags(1.0 / np.square(diags), format='csc')
+        qo = sparse.diags(np.square(diags), format='csc')
 
         return qi, qo

@@ -133,12 +133,20 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         vec_pr[2] = ra_inv * rv - v_ave * ra_inv * rho
         vec_pr[3] = ra_inv * rw - w_ave * ra_inv * rho
 
+        # Convert to pressure
+        # u = vec_pr[1]
+        # v = vec_pr[2]
+        # w = vec_pr[3]
+        # vec_pr[4] = 0.4 * e
+        # vec_pr[4] += - 0.4 * 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
+        # vec_pr[4] += - 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+
+        # Concert to temperature
         u = vec_pr[1]
         v = vec_pr[2]
         w = vec_pr[3]
-        vec_pr[4] = 0.4 * e
-        vec_pr[4] += - 0.4 * 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
-        vec_pr[4] += - 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
+        vec_pr[4] = 1.4 * 0.4 * (e * ra_inv - rho * ra_inv * ra_inv)
+        vec_pr[4] += - 1.4 * 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
 
         return vec_pr
 

@@ -3,7 +3,7 @@ import time
 import itertools
 import numpy as np
 from scipy import sparse
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import lil_matrix, csc_matrix
 
 from Functions.Variables import Variables
 # from Functions.Identity import Identity
@@ -95,16 +95,18 @@ class MatMaker:
             i_row = int(id_cell) + int(id_val) * self.n_cell
             i_col = int(ref_cell) + int(ref_val) * self.n_cell
             operator[i_row, i_col] = val
-        self.operator = csr_matrix(operator)
+        self.operator = csc_matrix(operator)
 
     def save_mat(self, filename='matL.npz'):
-        sparse.save_npz(filename, self.operator)
+        if self._is_root:
+            sparse.save_npz(filename, self.operator)
 
 
 class PlaceHolder:
     def __init__(self, n_cell, n_val, ave_field=None):
         self._gamma = 1.4
         self._gamma_2 = 1.0 / (1.4 - 1.0)
+        self._gamma_3 = 1.0 / 1.4
 
         self.n_cell = n_cell
         self.n_val = n_val
@@ -127,50 +129,72 @@ class PlaceHolder:
         i_cell = x[0]
         i_val = x[1]
 
-        if 0 <= i_val < 5:
-            # for Rho, u vel, v vel, w vel, pressure
+        # Converting [rho', u', v', w', T'] -> [rho', u', v', w', p', e', T']
+        # if 0 <= i_val < 5:
+        if 0 <= i_val < 4:
+            # for Rho, u vel, v vel, w vel
             return float(i_cell == self.i_cell and i_val == self.i_val)
+        elif i_val == 4:
+            return self._calc_pressure(i_cell)
         elif i_val == 5:
             # for energy
             return self._calc_energy(i_cell)
         elif i_val == 6:
             # for temperature
-            return self._calc_temperature(i_cell)
+            # return self._calc_temperature(i_cell)
+            return float(i_cell == self.i_cell and self.i_val == 4)
         else:
             raise Exception
 
     def _calc_energy(self, i_cell):
         # for energy variation
         g2 = self._gamma_2
+        g3 = self._gamma_3
 
         rho = self[i_cell, 0]
         u = self[i_cell, 1]
         v = self[i_cell, 2]
         w = self[i_cell, 3]
-        p = self[i_cell, 4]
+        # p = self[i_cell, 4]
+        t = self[i_cell, 6]
 
         ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
         u_ave = ave[i_cell, 1]
         v_ave = ave[i_cell, 2]
         w_ave = ave[i_cell, 3]
+        t_ave = ave[i_cell, 6]
 
-        e = g2 * p
+        # e = g2 * p
+        e = g2 * g3 * (rho * t_ave + rho_ave * t)
         e += 0.5 * rho * (u_ave * u_ave + v_ave * v_ave + w_ave * w_ave)
         e += rho_ave * (u * u_ave + v * v_ave + w * w_ave)
         return e
 
-    def _calc_temperature(self, i_cell):
-        # for temperature variation
-        g1 = self._gamma
+    def _calc_pressure(self, i_cell):
+        # for calculate pressure
+        g3 = self._gamma_3
 
         rho = self[i_cell, 0]
-        p = self[i_cell, 4]
+        t = self[i_cell, 6]
 
         ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
-        p_ave = ave[i_cell, 4]
+        t_ave = ave[i_cell, 6]
 
-        t = g1 * p / rho_ave
-        t += g1 * p_ave * rho / (rho_ave * rho_ave)
-        return t
+        return g3 * (rho * t_ave + rho_ave + t)
+
+    # def _calc_temperature(self, i_cell):
+    #     for temperature variation
+        # g1 = self._gamma
+        #
+        # rho = self[i_cell, 0]
+        # p = self[i_cell, 4]
+        #
+        # ave = self._ave_field.data
+        # rho_ave = ave[i_cell, 0]
+        # p_ave = ave[i_cell, 4]
+        #
+        # t = g1 * p / rho_ave
+        # t += g1 * p_ave * rho / (rho_ave * rho_ave)
+        # return t
