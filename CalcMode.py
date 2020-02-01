@@ -21,38 +21,45 @@ def main(mode, param_file='Parameter.dat', profile='Default'):
     profiles.read(param_file, encoding='utf-8')
     params = profiles[profile]
 
-    case_dir = params.get('CaseDir')
-    time_dir = params.get('TimeDir')
-    operator_name = params.get('Operator')
-    save_name = params.get('SaveName')
-    k = int(params.get('ModeNum'))
+    print('Calculation start.\nParameters:')
+    for key, value in params.items():
+        print(key + ' = ' + value)
+
+    # Set up
+    case_dir = params['CaseDir']
+    time_dir = params['TimeDir']
+    operator = params['Operator']
+    save_name = params['SaveName']
+    k = int(params['ModeNum'])
 
     if mode == 'Stability':
+        which = params['Which']
         sigma = params.get('Sigma')
         if sigma is not None:
-            sigma = complex(sigma)
-        which = params.get('Which')
+            params['Sigma'] = complex(''.join(sigma.split()))
 
-        CalcStability(case_dir, time_dir, operator_name, save_name, k=k, sigma=sigma, which=which)
+        CalcStability(case_dir, time_dir, operator, save_name, k=k, sigma=sigma, which=which)
 
     elif mode == 'Resolvent':
-        omega = float(params.get('Omega'))
-        alpha = float(params.get('Alpha'))
-        mode = params.get('ResolventMode')
+        omega = float(params['Omega'])
+        alpha = float(params['Alpha'])
+        mode = params['ResolventMode']
 
-        CalcResolvent(case_dir, time_dir, operator_name, save_name, k=k, omega=omega, alpha=alpha, mode=mode)
+        CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=mode)
+
+    print('Done.')
 
 
 def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma=None, which='LM'):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
 
-    ls_mode = LSMode(mesh, operator_name, k=k)
-    ls_mode.solve(sigma=sigma, which=which)
+    ls_mode = LSMode(mesh, operator_name, k=k, sigma=sigma, which=which)
+    ls_mode.solve()
     ls_mode.save_data(save_name + '.pickle')
     ls_mode.vis_tecplot(save_name + '.dat')
 
 
-def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alpha=0.0, mode=None):
+def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alpha=0.0, mode='Both'):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
 

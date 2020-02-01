@@ -17,6 +17,13 @@ class ModalData(FieldData):
         self.operator = self._set_operator(sparse.load_npz(operator_name), **kwargs)
         self._vec_data = None
 
+        self._arpack_options = {
+            'k': self._k,
+            'sigma': None,
+            'which': 'LM',
+            'tol': 1.0e-8
+        }
+
     def _init_field(self, *args, **kwargs):
         self.data = np.empty((self.n_cell, self._data_num()), dtype=np.float64)
 
@@ -29,8 +36,8 @@ class ModalData(FieldData):
     def _set_operator(self, operator, **kwargs):
         raise NotImplementedError
 
-    def solve(self, **kwargs):  # kwargs for ARPACK.
-        self._vec_data = self._calculate(**kwargs)
+    def solve(self):  # kwargs for ARPACK.
+        self._vec_data = self._calculate()
         self._set_data(self._vec_data)  # Set self.data and self._vec_data for the visualization.
 
     def save_data(self, filename='modalData.pickle'):
@@ -41,7 +48,7 @@ class ModalData(FieldData):
         self._vec_data = pickle.load(filename)
         self._set_data(self._vec_data)
 
-    def _calculate(self, **kwargs):
+    def _calculate(self):
         raise NotImplementedError
 
     def _set_data(self, data):
@@ -51,6 +58,7 @@ class ModalData(FieldData):
 class LinearStabilityMode(ModalData):
     def __init__(self, mesh, operator, n_val=5, k=10, **kwargs):
         super(LinearStabilityMode, self).__init__(mesh, operator, n_val, k, **kwargs)
+        self._arpack_options.update(**kwargs)
 
     def _data_num(self):
         return self._n_q * self._k
@@ -65,8 +73,8 @@ class LinearStabilityMode(ModalData):
     def _set_operator(self, operator, **kwargs):
         return operator
 
-    def _calculate(self, **kwargs):
-        return linalg.eigs(self.operator, k=self._k, **kwargs)
+    def _calculate(self):
+        return linalg.eigs(self.operator, **self._arpack_options)
 
     def _set_data(self, data):
         eigs, vecs = data
@@ -83,7 +91,7 @@ class LinearStabilityMode(ModalData):
 
 
 class ResolventMode(ModalData):
-    def __init__(self, mesh, ave_field, operator, omega, n_val=5, alpha=0.0, k=6, mode=None, **kwargs):
+    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode=None, **kwargs):
         self._ave_field = ave_field
         self.omega = omega
         self.alpha = alpha
@@ -93,6 +101,7 @@ class ResolventMode(ModalData):
         self._mode_r = mode == 'Both' or mode == 'Response'
 
         super(ResolventMode, self).__init__(mesh, operator, n_val, k, **kwargs)
+        self._arpack_options.update(sigma=0.0, which='LM', **kwargs)
 
     def _data_num(self):
         if self._mode is None:
@@ -117,25 +126,18 @@ class ResolventMode(ModalData):
 
         return qo * (-omegaI - operator) * qi
 
-    def _calculate(self, **kwargs):
-        arpack_options = {
-            'sigma': 0.0,
-            'which': 'LM',
-            'tol': 1.0e-8,
-            'ncv': 64
-        }
-
+    def _calculate(self):
         svs = None
         if self._mode_f:
             matF = self.operator * self.operator.H
-            svs, mode_f = linalg.eigsh(matF, k=self._k, **arpack_options, **kwargs)
+            svs, mode_f = linalg.eigsh(matF, **self._arpack_options)
             print('Eigenvalues for forcing: ', svs)
         else:
             mode_f = None
 
         if self._mode_r:
             matR = self.operator.H * self.operator
-            svs, mode_r = linalg.eigsh(matR, k=self._k, **arpack_options, **kwargs)
+            svs, mode_r = linalg.eigsh(matR, **self._arpack_options)
             print('Eigenvalues for response: ', svs)
         else:
             mode_r = None

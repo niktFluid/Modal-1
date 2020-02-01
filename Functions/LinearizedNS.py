@@ -70,35 +70,43 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         return grad_ave
 
     def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):
-        vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
-        vec_f = self.mesh.conv_vel(0.5 * (vec_a + vec_b), nb_face)
-        rho = vec_f[0]
-        u = vec_f[1]
-        v = vec_f[2]
-        w = vec_f[3]
-        p = vec_f[4]
-        e = vec_f[5]
-        # t = vec_f[6]
+        def flux(vec_f, ave_f):
+            rho = vec_f[0]
+            u = vec_f[1]
+            v = vec_f[2]
+            w = vec_f[3]
+            p = vec_f[4]
+            e = vec_f[5]
+            # t = vec_f[6]
 
-        ave_data = self._ave_field.data
-        ave_a, ave_b = self._get_cell_vals(ave_data, id_cell, nb_cell, nb_face)
-        ave_f = self.mesh.conv_vel(0.5 * (ave_a + ave_b), nb_face)
-        rho_ave = ave_f[0]
-        u_ave = ave_f[1]
-        v_ave = ave_f[2]
-        w_ave = ave_f[3]
-        p_ave = ave_f[4]
-        e_ave = ave_f[5]
-        # t_ave = ave_f[6]
+            rho_ave = ave_f[0]
+            u_ave = ave_f[1]
+            v_ave = ave_f[2]
+            w_ave = ave_f[3]
+            p_ave = ave_f[4]
+            e_ave = ave_f[5]
+            # t_ave = ave_f[6]
 
-        f = np.empty(5, dtype=np.float64)
-        f[0] = rho * u_ave + rho_ave * u
-        f[1] = 2.0 * rho_ave * u_ave * u + rho * u_ave * u_ave + p
-        f[2] = rho_ave * u_ave * v + rho_ave * u * v_ave + rho * u_ave * v_ave
-        f[3] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
-        f[4] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
+            f = np.empty(5, dtype=np.float64)
+            f[0] = rho * u_ave + rho_ave * u
+            f[1] = 2.0 * rho_ave * u_ave * u + rho * u_ave * u_ave + p
+            f[2] = rho_ave * u_ave * v + rho_ave * u * v_ave + rho * u_ave * v_ave
+            f[3] = rho_ave * u_ave * w + rho_ave * u * w_ave + rho * u_ave * w_ave
+            f[4] = rho_ave * (e_ave + p_ave) * u + rho_ave * (e + p) * u_ave + rho * (e_ave + p_ave) * u_ave
+            return f
 
-        return self.mesh.conv_vel(f, nb_face, inverse=True)
+        vec_a, vec_b = self._get_face_vals(data, id_cell, nb_cell, nb_face)
+        ave_a, ave_b = self._get_face_vals(self._ave_field.data, id_cell, nb_cell, nb_face, ave_value=True)
+
+        vec_fa = self.mesh.conv_vel(vec_a, nb_face)
+        ave_fa = self.mesh.conv_vel(ave_a, nb_face)
+        fa = flux(vec_fa, ave_fa)
+
+        vec_fb = self.mesh.conv_vel(vec_b, nb_face)
+        ave_fb = self.mesh.conv_vel(ave_b, nb_face)
+        fb = flux(vec_fb, ave_fb)
+
+        return self.mesh.conv_vel(0.5*(fa + fb), nb_face, inverse=True)
 
     def _calc_viscous_flux(self, data, id_cell, nb_cell, nb_face):
         flux = np.zeros(5, dtype=np.float64)
@@ -180,26 +188,42 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         return val_vec_0, val_vec_nb
 
-    def _get_face_grad(self, data, id_cell, nb_cell, nb_face, ave_value=False):
-        def get_grad_vec(i_cell):
-            if not ave_value:
-                return self._grad_refs[self._ref_cells.index(i_cell)]
-            else:
-                return self._grad_ave[id_cell]
+    def _get_grad_vec(self, i_cell, ave_value):
+        if not ave_value:
+            return self._grad_refs[self._ref_cells.index(i_cell)]
+        else:
+            return self._grad_ave[i_cell]
 
-        grad_id = get_grad_vec(id_cell)
+    def _get_face_vals(self, data, id_cell, nb_cell, nb_face, ave_value=False):
+        val_a, val_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+
+        def reconstruct(val_vec, ind):
+            grad = self._get_grad_vec(ind, ave_value)
+            r_vec = self.mesh.face_centers[nb_face] - self.mesh.centers[ind]
+            return val_vec + grad @ r_vec
+
+        if nb_cell >= 0:
+            val_vec_0 = reconstruct(val_a, id_cell)
+            val_vec_nb = reconstruct(val_b, nb_cell)
+        else:
+            val_vec_0, val_vec_nb = val_a, val_b
+
+        return val_vec_0, val_vec_nb
+
+    def _get_face_grad(self, data, id_cell, nb_cell, nb_face, ave_value=False):
+        grad_id = self._get_grad_vec(id_cell, ave_value)
         vol_id = self.mesh.volumes[id_cell]
-        if nb_cell > 0:  # For inner faces
-            grad_nb = get_grad_vec(nb_cell)
+        if nb_cell >= 0:  # For inner faces
+            grad_nb = self._get_grad_vec(nb_cell, ave_value)
             vol_nb = self.mesh.volumes[nb_cell]
         else:  # For boundary faces.
-            grad_nb = get_grad_vec(id_cell)
+            grad_nb = self._get_grad_vec(id_cell, ave_value)
             vol_nb = self.mesh.volumes[id_cell]
 
         vol_inv = 1.0 / (vol_id + vol_nb)
         grad_face = (grad_id * vol_id + grad_nb * vol_nb) * vol_inv
 
-        # For prevent from even-odd instability.
+        # For prevent even-odd instability.
         vec_lr = self._get_pos_diff(id_cell, nb_cell, nb_face)
         inv_lr = 1.0 / (vec_lr[0]*vec_lr[0] + vec_lr[1]*vec_lr[1] + vec_lr[2]*vec_lr[2])
         vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
