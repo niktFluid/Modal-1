@@ -30,8 +30,8 @@ class ModalData(FieldData):
         raise NotImplementedError
 
     def solve(self, **kwargs):  # kwargs for ARPACK.
-        result = self._calculate(**kwargs)
-        self._set_data(result)  # Set self.data and self._vec_data for the visualization.
+        self._vec_data = self._calculate(**kwargs)
+        self._set_data(self._vec_data)  # Set self.data and self._vec_data for the visualization.
 
     def save_data(self, filename='modalData.pickle'):
         with open(filename, 'wb') as file_obj:
@@ -39,6 +39,7 @@ class ModalData(FieldData):
 
     def load_data(self, filename='modalData.pickle'):
         self._vec_data = pickle.load(filename)
+        self._set_data(self._vec_data)
 
     def _calculate(self, **kwargs):
         raise NotImplementedError
@@ -69,7 +70,6 @@ class LinearStabilityMode(ModalData):
 
     def _set_data(self, data):
         eigs, vecs = data
-        self._vec_data = [eigs, vecs]
 
         # noinspection PyTypeChecker
         np.savetxt('eigs.txt', np.vstack((np.real(eigs), np.imag(eigs))).T)
@@ -118,28 +118,34 @@ class ResolventMode(ModalData):
         return qo * (-omegaI - operator) * qi
 
     def _calculate(self, **kwargs):
+        arpack_options = {
+            'sigma': 0.0,
+            'which': 'LM',
+            'tol': 1.0e-8,
+            'ncv': 64
+        }
+
         svs = None
         if self._mode_f:
             matF = self.operator * self.operator.H
-            svs, mode_f = linalg.eigsh(matF, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            svs, mode_f = linalg.eigsh(matF, k=self._k, **arpack_options, **kwargs)
             print('Eigenvalues for forcing: ', svs)
         else:
             mode_f = None
 
         if self._mode_r:
             matR = self.operator.H * self.operator
-            svs, mode_r = linalg.eigsh(matR, k=self._k, sigma=0.0, which='LM', ncv=64, **kwargs)
+            svs, mode_r = linalg.eigsh(matR, k=self._k, **arpack_options, **kwargs)
             print('Eigenvalues for response: ', svs)
         else:
             mode_r = None
 
-        print('Singular values: ', np.sqrt(np.real(svs)))
-        print('Gains: ', 1.0 / np.sqrt(np.real(svs)))
-        return mode_r, svs, mode_f
+        print('Singular values: ', np.sqrt(svs))
+        print('Gains: ', 1.0 / np.sqrt(svs))
+        return self.omega, 1.0 / np.sqrt(svs), mode_r, mode_f
 
     def _set_data(self, data):
-        r_vecs, svs, f_vecs = data
-        self._vec_data = [self.omega, 1.0 / np.sqrt(np.real(svs)), r_vecs, f_vecs]  # Freq, gain, response, forcing
+        _, _, r_vecs, f_vecs = data
 
         coef_ind_1 = 1 + int(self._mode is None)
         coef_ind_2 = self._n_q * int(self._mode is None)
@@ -167,7 +173,7 @@ class ResolventMode(ModalData):
         r_gas = 1.0 / 1.4  # Non-dimensionalized gas constant.
 
         # Chu's energy norm.
-        vols = self.mesh.volumes / np.linalg.norm(self.mesh.volumes)
+        vols = self.mesh.volumes  # / np.linalg.norm(self.mesh.volumes)
         diag_rho = vols * r_gas * t_data / rho_data
         diag_u = vols * rho_data
         diag_t = vols * r_gas * rho_data / ((gamma - 1) * t_data)

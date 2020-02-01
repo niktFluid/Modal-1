@@ -13,7 +13,7 @@ from Functions.MatMaker import MatMaker
 from Functions.LinearizedNS import LNS
 
 
-def main(param_file, profile):
+def main(param_file='Parameter.dat', profile='Default'):
     if not os.path.exists(param_file):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 

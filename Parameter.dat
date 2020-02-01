@@ -1,3 +1,4 @@
+#  -------------  Default profiles -------------
 [GenerateOperatorDefault]
 CaseDir = Data/cavity_test/
 TimeDir = 1/
@@ -12,6 +13,7 @@ Operator = Operators/matL.npz
 SaveName = Results/stability_modes
 ModeNum = 10
 # Sigma = 0.0+0.0j  # Access to non-exist parameter returns None.
+Which = LM
 
 [ResolventDefault]
 CaseDir = Data/cavity_test/
@@ -23,12 +25,23 @@ Omega = 0.0
 Alpha = 0.0
 ResolventMode = Both
 
+
+#  -------------  Specified profiles -------------
 [operator_cylinder-noise]
 CaseDir = /mnt/data/OpenFOAM/CylinderNoise/
 TimeDir = 499.992868672869065/
 Operator = Operators/matL_Cylinder-0.npz
 Viscosity = 1.3333333e-3
 PrandtlNumber = 0.7
+
+[ls_cylinder_0]
+CaseDir = /mnt/data/OpenFOAM/CylinderNoise/
+TimeDir = 499.992868672869065/
+Operator = Operators/matL_Cylinder-0.npz
+SaveName = Results/cylinder_ls_mode_0
+ModeNum = 200
+# Sigma = 0.0+0.0j  # Access to non-exist parameter returns None.
+Which = LR
 
 [res_cylinder_both]
 CaseDir = /mnt/data/OpenFOAM/CylinderNoise/

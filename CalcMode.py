@@ -10,7 +10,7 @@ from Functions.ModalAnalysis import ResolventMode as Resolvent
 from Functions.ModalAnalysis import LinearStabilityMode as LSMode
 
 
-def main(mode, param_file, profile='Default'):
+def main(mode, param_file='Parameter.dat', profile='Default'):
     if not os.path.exists(param_file):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 
@@ -21,34 +21,33 @@ def main(mode, param_file, profile='Default'):
     profiles.read(param_file, encoding='utf-8')
     params = profiles[profile]
 
-    case_dir = params['CaseDir']
-    time_dir = params['TimeDir']
-    operator_name = params['Operator']
-    save_name = params['SaveName']
-    k = int(params['ModeNum'])
+    case_dir = params.get('CaseDir')
+    time_dir = params.get('TimeDir')
+    operator_name = params.get('Operator')
+    save_name = params.get('SaveName')
+    k = int(params.get('ModeNum'))
 
     if mode == 'Stability':
-        sigma = params['Sigma']
+        sigma = params.get('Sigma')
         if sigma is not None:
             sigma = complex(sigma)
+        which = params.get('Which')
 
-        CalcStability(case_dir, time_dir, operator_name, save_name, k=k, sigma=sigma)
+        CalcStability(case_dir, time_dir, operator_name, save_name, k=k, sigma=sigma, which=which)
 
     elif mode == 'Resolvent':
-        omega = float(params['Omega'])
-        alpha = float(params['Alpha'])
-        mode = params['ResolventMode']
+        omega = float(params.get('Omega'))
+        alpha = float(params.get('Alpha'))
+        mode = params.get('ResolventMode')
+
         CalcResolvent(case_dir, time_dir, operator_name, save_name, k=k, omega=omega, alpha=alpha, mode=mode)
 
 
-def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma=None):
-    case_dir = case_dir
-    data_dir = time
-
-    mesh = OfMesh(case_dir, data_dir + 'C', data_dir + 'V', data_dir + 'U', data_dir + 'p')
+def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma=None, which='LM'):
+    mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
 
     ls_mode = LSMode(mesh, operator_name, k=k)
-    ls_mode.solve(sigma=sigma, which='LM')
+    ls_mode.solve(sigma=sigma, which=which)
     ls_mode.save_data(save_name + '.pickle')
     ls_mode.vis_tecplot(save_name + '.dat')
 
