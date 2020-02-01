@@ -30,7 +30,7 @@ ResolventMode = Both
 [operator_cylinder-noise]
 CaseDir = /mnt/data/OpenFOAM/CylinderNoise/
 TimeDir = 499.992868672869065/
-Operator = Operators/matL_Cylinder-0.npz
+Operator = Operators/matL_Cylinder-1.npz
 Viscosity = 1.3333333e-3
 PrandtlNumber = 0.7
 

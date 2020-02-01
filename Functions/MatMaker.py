@@ -33,9 +33,9 @@ class MatMaker:
         self.operator = None
 
         if ave_field is None:
-            n_val_ph = 5  # rho, u, v, w, pressure
+            n_val_ph = 5  # rho, u, v, w, temperature
         else:
-            n_val_ph = 7  # add energy and temperature
+            n_val_ph = 7  # add energy and pressure
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
 
     def _check_target(self):
