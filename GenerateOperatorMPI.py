@@ -24,6 +24,10 @@ def main(param_file='Parameter.dat', profile='Default'):
     profiles.read(param_file, encoding='utf-8')
     params = profiles[profile]
 
+    # print('Calculation start.\nParameters:')
+    # for key, value in params.items():
+    #     print(key + ' = ' + value)
+
     case_dir = params['CaseDir']
     time_dir = params['TimeDir']
     operator_name = params['Operator']

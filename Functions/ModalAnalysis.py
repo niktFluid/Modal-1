@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pickle
 # import scipy as sp
@@ -77,10 +78,7 @@ class LinearStabilityMode(ModalData):
         return linalg.eigs(self.operator, **self._arpack_options)
 
     def _set_data(self, data):
-        eigs, vecs = data
-
-        # noinspection PyTypeChecker
-        np.savetxt('eigs.txt', np.vstack((np.real(eigs), np.imag(eigs))).T)
+        _, vecs = data
 
         for i_mode, vec in enumerate(vecs.T):
             i_start = self._n_q * i_mode
@@ -88,6 +86,16 @@ class LinearStabilityMode(ModalData):
 
             w_vec = vec.reshape((self.n_cell, self._n_q), order='F')
             self.data[:, i_start:i_end] = np.real(w_vec)
+
+    def save_data(self, filename='modalData.pickle'):
+        save_name, _ = os.path.splitext(filename)
+
+        eigs, _ = self._vec_data
+        # noinspection PyTypeChecker
+        np.savetxt(save_name + '_eigs.txt', np.vstack((np.real(eigs), np.imag(eigs))).T)
+
+        with open(filename, 'wb') as file_obj:
+            pickle.dump(self._vec_data, file_obj)
 
 
 class ResolventMode(ModalData):
@@ -104,7 +112,7 @@ class ResolventMode(ModalData):
         self._arpack_options.update(sigma=0.0, which='LM', **kwargs)
 
     def _data_num(self):
-        if self._mode is None:
+        if self._mode == 'Both':
             return self._n_q * self._k * 2
         else:
             return self._n_q * self._k
@@ -149,8 +157,8 @@ class ResolventMode(ModalData):
     def _set_data(self, data):
         _, _, r_vecs, f_vecs = data
 
-        coef_ind_1 = 1 + int(self._mode is None)
-        coef_ind_2 = self._n_q * int(self._mode is None)
+        coef_ind_1 = 1 + int(self._mode == 'Both')
+        coef_ind_2 = self._n_q * int(self._mode == 'Both')
         for i_mode in range(self._k):
             if self._mode_f:
                 f_vec = f_vecs[:, i_mode]

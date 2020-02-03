@@ -33,10 +33,7 @@ class Gradient(Variables):
         return linalg.lu_solve((self.matLU1[id_cell], self.matLU2[id_cell]), vec_rhs)
 
     def _set_left_mat(self):
-        n_cell = self.mesh.n_cell
-        # n_face = self.mesh.n_face
-
-        for id_cell in range(n_cell):
+        for id_cell in range(self.mesh.n_cell):
             matA = self._set_left_mat_by_cell(id_cell)
             self.matLU1[id_cell], self.matLU2[id_cell] = linalg.lu_factor(matA)
 
@@ -61,8 +58,8 @@ class Gradient(Variables):
         faces = self.mesh.cell_faces[id_cell]
 
         val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
-        rhs_vec = np.zeros(3, np.float64)
 
+        rhs_vec = np.zeros(3, dtype=np.float64)
         for id_nb, id_face in zip(nb_cells, faces):
             vec_lr = self._get_pos_diff(id_cell, id_nb, id_face)
             val_diff = self._get_val_diff(data, val_vec, id_nb, id_face, id_val)
@@ -73,10 +70,5 @@ class Gradient(Variables):
         if id_k >= 0:  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
         else:  # For boundary cells
-            boundary = self.mesh.get_bd_tuple(id_k_face)
-            bd_type = boundary.type
-            if self.is2d and bd_type == self.bd_cond.empty:
-                return 0.0
-            else:
-                val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
-                return val_bd[id_val] - vec_0[id_val]
+            val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
+            return val_bd[id_val] - vec_0[id_val]

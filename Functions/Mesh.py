@@ -61,10 +61,10 @@ class Mesh:
         return None
 
     def conv_vel(self, val_vec, id_face, inverse=False):
-        face_mat = self.face_mat[id_face]
         if inverse:
-            face_mat = face_mat.T
-
+            face_mat = self.face_mat[id_face].T
+        else:
+            face_mat = self.face_mat[id_face]
         val_vec[1:4] = face_mat @ val_vec[1:4]
         return val_vec
 
