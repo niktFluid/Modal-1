@@ -22,7 +22,7 @@ class ModalData(FieldData):
             'k': self._k,
             'sigma': None,
             'which': 'LM',
-            'tol': 1.0e-8
+            # 'tol': 1.0e-8,
         }
 
     def _init_field(self, *args, **kwargs):

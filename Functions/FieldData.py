@@ -37,17 +37,17 @@ class FieldData:
 
     def _make_tec_header(self):
         header = 'Title = "Data" \n'
-        header += 'Variables = "x", "y", "z", ' + ', '.join(['"' + x + '"' for x in self.data_list]) + '\n'
+        header += 'Variables = "x"\n"y"\n"z"\n' + '\n'.join(['"' + x + '"' for x in self.data_list]) + '\n'
         header += 'Zone T = "Fluid area" \n'
         # header += 'StrandID=1, SolutionTime=' + str(self.sol_time) + ' \n'
         header += 'Nodes=' + str(self.mesh.n_node) + ' \n'
         header += 'Elements=' + str(self.mesh.n_cell) + ' \n'
-        header += 'DATAPACKING=BLOCK \nZONETYPE=FEBRICK \n'
+        header += 'DATAPACKING=BLOCK \nZONETYPE=FEBrick \n'
         header += 'VARLOCATION=([4-' + str(self.n_val + 3) + ']=CELLCENTERED) \n'
         return header
 
     def _make_connectivity(self):
-        # We should arrange this subroutine for clarify.
+        # This subroutine should be modified for clarify.
         mesh = self.mesh
         for faces in mesh.cell_faces:
             nodes = set(sum([mesh.face_nodes[x] for x in faces], []))
