@@ -41,9 +41,9 @@ def main(param_file='Parameter.dat', profile='Default'):
     elif mode == 'Resolvent':
         omega = float(params['Omega'])
         alpha = float(params['Alpha'])
-        mode = params['ResolventMode']
+        r_mode = params['ResolventMode']
 
-        CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=mode)
+        CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
 
     print('Done.')
 
