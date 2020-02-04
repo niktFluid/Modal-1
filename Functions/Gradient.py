@@ -70,5 +70,10 @@ class Gradient(Variables):
         if id_k >= 0:  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
         else:  # For boundary cells
-            val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
-            return val_bd[id_val] - vec_0[id_val]
+            boundary = self.mesh.get_bd_tuple(id_k_face)
+            bd_type = boundary.type
+            if self.is2d and bd_type == self.bd_cond.empty:
+                return 0.0
+            else:
+                val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
+                return val_bd[id_val] - vec_0[id_val]
