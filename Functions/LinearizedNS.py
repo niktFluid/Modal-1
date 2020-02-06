@@ -140,6 +140,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
     def _conv2prime(self, vec_conv, id_cell):
         # Convert the conservative variables to the prime variables.
+        # [rho, rho-u, rho-v, rho-w, e] -> [rho, u, v, w, T]
         rho = vec_conv[0]
         ru = vec_conv[1]
         rv = vec_conv[2]
@@ -152,6 +153,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         v_ave = ave_data[id_cell, 2]
         w_ave = ave_data[id_cell, 3]
         # p_ave = ave_data[id_cell, 4]
+        e_ave = ave_data[id_cell, 5]
         ra_inv = 1.0 / rho_ave
 
         vec_pr = np.empty(5, dtype=np.float64)
@@ -172,7 +174,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         u = vec_pr[1]
         v = vec_pr[2]
         w = vec_pr[3]
-        vec_pr[4] = 1.4 * 0.4 * (e * ra_inv - rho * ra_inv * ra_inv)
+        vec_pr[4] = 1.4 * 0.4 * (e * ra_inv - e_ave * rho * ra_inv * ra_inv)
         vec_pr[4] += - 1.4 * 0.4 * rho_ave * (u * u_ave + v * v_ave + w * w_ave)
 
         return vec_pr

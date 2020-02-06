@@ -193,3 +193,8 @@ class ResolventMode(ModalData):
         qo = sparse.diags(np.square(diags), format='csc')
 
         return qi, qo
+
+
+class RandomizedResolventMode(ResolventMode):
+    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode=None, **kwargs):
+        super(RandomizedResolventMode, self).__init__(mesh, ave_field, operator, omega, alpha, n_val, k, mode, **kwargs)

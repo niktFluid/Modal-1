@@ -182,7 +182,7 @@ class PlaceHolder:
         rho_ave = ave[i_cell, 0]
         t_ave = ave[i_cell, 6]
 
-        return g3 * (rho * t_ave + rho_ave + t)
+        return g3 * (rho * t_ave + rho_ave * t)
 
     # def _calc_temperature(self, i_cell):
     #     for temperature variation
