@@ -73,7 +73,7 @@ class Gradient(Variables):
             boundary = self.mesh.get_bd_tuple(id_k_face)
             bd_type = boundary.type
             if self.is2d and bd_type == self.bd_cond.empty:
-                return 0.0
+                return 0.0  # Wrong?
             else:
                 val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
                 return val_bd[id_val] - vec_0[id_val]

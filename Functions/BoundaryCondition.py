@@ -1,4 +1,4 @@
-import numpy as np
+# import numpy as np
 
 
 class BoundaryCondition:
@@ -38,17 +38,21 @@ class BoundaryCondition:
         val_vec[1] *= -1.0
         return val_vec
 
-    def _bd_wall(self, val_vec, id_face):
-        bd_data = self.mesh.get_bd_tuple(id_face)
-        vel_wall_g = bd_data.u_val
-
-        if vel_wall_g is None or not np.any(vel_wall_g):
-            vel_wall = 0.0
-        else:
-            vel = np.zeros(5, dtype=np.float64)
-            vel[1:4] = vel_wall_g
-            vel_loc = self.mesh.conv_vel(vel, id_face)
-            vel_wall = vel_loc[1:4]
-
-        val_vec[1:4] = 2.0 * vel_wall - val_vec[1:4]
+    @staticmethod
+    def _bd_wall(val_vec, _):
+        # bd_data = self.mesh.get_bd_tuple(id_face)
+        # vel_wall_g = bd_data.u_val
+        #
+        # if vel_wall_g is None or not np.any(vel_wall_g):
+        #     vel_wall = 0.0
+        # else:
+        #     vel = np.zeros(5, dtype=np.float64)
+        #     vel[1:4] = vel_wall_g
+        #     vel_loc = self.mesh.conv_vel(vel, id_face)
+        #     vel_wall = vel_loc[1:4]
+        #
+        # val_vec[1:4] = 2.0 * vel_wall - val_vec[1:4]
+        val_vec[1] *= -1.0
+        val_vec[2] *= -1.0
+        val_vec[3] *= -1.0
         return val_vec

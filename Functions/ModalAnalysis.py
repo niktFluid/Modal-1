@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pickle
-# import scipy as sp
+import scipy as sp
 from scipy.sparse import linalg
 from scipy import sparse
 
@@ -196,5 +196,32 @@ class ResolventMode(ModalData):
 
 
 class RandomizedResolventMode(ResolventMode):
-    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode=None, **kwargs):
+    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode='Both', **kwargs):
         super(RandomizedResolventMode, self).__init__(mesh, ave_field, operator, omega, alpha, n_val, k, mode, **kwargs)
+
+    def _calculate(self):
+        matY = self._get_sketch()
+        matQ, _ = sp.linalg.qr(matY)
+
+        matQ = sparse.csc_matrix(matQ)
+        matB = linalg.spsolve(self.operator.H, matQ)
+
+        _, _, V = sp.linalg.svd(matB.H)
+        matUS = linalg.spsolve(self.operator, V.H)
+
+        Sigma = sp.linalg.norm(matUS, ord=2, axis=1)
+        U = matUS / Sigma
+
+        return Sigma, U, V
+
+    class CustomRand(np.random.RandomState):
+        def normal_func(self, k):
+            return self.normal(loc=0.0, scale=1.0, size=k)
+
+    def _get_sketch(self):
+        m = self.operator.shape[0]
+        k = self._k
+        rvs = self.CustomRand()
+
+        matO = sparse.random(m, k, density=1.0, format='csc', dtype=np.float64, data_rvs=rvs.normal_func)
+        return linalg.spsolve(self.operator, matO)

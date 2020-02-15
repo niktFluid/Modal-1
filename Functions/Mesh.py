@@ -111,9 +111,6 @@ class OfMesh(Mesh):
         self.face_area = np.empty(self.n_face, dtype=np.float64)
         self.face_mat = np.empty((self.n_face, 3, 3), dtype=np.float64)
 
-        def normalize(vec):
-            return vec/np.linalg.norm(vec)
-
         for i_face in range(self.n_face):
             face_nodes = np.array(self.face_nodes[i_face])
 
@@ -122,8 +119,8 @@ class OfMesh(Mesh):
             vec_c = np.cross(vec_a, vec_b)
             self.face_area[i_face] = np.linalg.norm(vec_c)
 
-            vec_n = normalize(vec_c)  # Surface normal vector
-            vec_t1 = normalize(vec_a)  # Surface tangential vector 1
+            vec_n = vec_c / np.linalg.norm(vec_c)  # Surface normal vector
+            vec_t1 = vec_a / np.linalg.norm(vec_a)  # Surface tangential vector 1
             vec_t2 = np.cross(vec_n, vec_t1)
 
             self.face_mat[i_face, 0] = vec_n
