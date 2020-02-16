@@ -118,7 +118,7 @@ class PlaceHolder:
         self._ave_field = ave_field
 
         if n_val > 5 and ave_field is None:
-            # For calculating energy and temperature
+            # For calculating energy and pressure
             raise Exception
 
     def set_ph(self, i_cell, i_val):
@@ -129,20 +129,20 @@ class PlaceHolder:
         i_cell = x[0]
         i_val = x[1]
 
-        # Converting [rho', u', v', w', T'] -> [rho', u', v', w', p', e', T']
+        # Converting [rho', u', v', w', T'] -> [rho', u', v', w', T', p', e']
         # if 0 <= i_val < 5:
-        if 0 <= i_val < 4:
-            # for Rho, u vel, v vel, w vel
+        if 0 <= i_val <= 4:
+            # for Rho, u vel, v vel, w vel, T
             return float(i_cell == self.i_cell and i_val == self.i_val)
-        elif i_val == 4:
-            return self._calc_pressure(i_cell)
         elif i_val == 5:
+            return self._calc_pressure(i_cell)
+        elif i_val == 6:
             # for energy
             return self._calc_energy(i_cell)
-        elif i_val == 6:
+        # elif i_val == 6:
             # for temperature
             # return self._calc_temperature(i_cell)
-            return float(i_cell == self.i_cell and self.i_val == 4)
+            # return float(i_cell == self.i_cell and self.i_val == 4)
         else:
             raise Exception
 
@@ -156,14 +156,14 @@ class PlaceHolder:
         v = self[i_cell, 2]
         w = self[i_cell, 3]
         # p = self[i_cell, 4]
-        t = self[i_cell, 6]
+        t = self[i_cell, 4]
 
         ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
         u_ave = ave[i_cell, 1]
         v_ave = ave[i_cell, 2]
         w_ave = ave[i_cell, 3]
-        t_ave = ave[i_cell, 6]
+        t_ave = ave[i_cell, 4]
 
         # e = g2 * p
         e = g2 * g3 * (rho * t_ave + rho_ave * t)
@@ -176,11 +176,11 @@ class PlaceHolder:
         g3 = self._gamma_3
 
         rho = self[i_cell, 0]
-        t = self[i_cell, 6]
+        t = self[i_cell, 4]
 
         ave = self._ave_field.data
         rho_ave = ave[i_cell, 0]
-        t_ave = ave[i_cell, 6]
+        t_ave = ave[i_cell, 4]
 
         return g3 * (rho * t_ave + rho_ave * t)
 

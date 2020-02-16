@@ -5,7 +5,7 @@ import Ofpp
 class FieldData:
     def __init__(self, mesh, n_val=5, data_list=None):
         if data_list is None:
-            self.data_list = ['rho', 'u', 'v', 'w', 'p']
+            self.data_list = ['rho', 'u', 'v', 'w', 'T']
         else:
             self.data_list = data_list
 
@@ -114,27 +114,38 @@ class FieldData:
 
 
 class FlowData(FieldData):
-    def __init__(self, mesh, add_e=False, add_temp=False):
+    def __init__(self, mesh, add_e=False, add_pres=False):
         super(FlowData, self).__init__(mesh)
 
+        if add_pres:
+            self._add_pressure()
         if add_e:
             self._add_energy()
-        if add_temp:
-            self._add_temperature()
+        # if add_temp:
+        #     self._add_temperature()
 
     def _init_field(self, *args, **kwargs):
         raise NotImplementedError
+
+    def _add_pressure(self):
+        self.n_val += 1
+        self.data_list.append('p')
+
+        rho = self.data[:, 0]
+        t = self.data[:, 4]
+        p = rho * t / 1.4
+
+        self.data = np.hstack((self.data, p.reshape((self.n_cell, 1))))
 
     def _add_energy(self):
         self.n_val += 1
         self.data_list.append('e')
 
-        data = self.data
-        rho = data[:, 0]
-        u = data[:, 1]
-        v = data[:, 2]
-        w = data[:, 3]
-        p = data[:, 4]
+        rho = self.data[:, 0]
+        u = self.data[:, 1]
+        v = self.data[:, 2]
+        w = self.data[:, 3]
+        p = self.data[:, 4]
 
         g2 = 1.0 / (1.4 - 1.0)
         e = g2 * p + 0.5 * rho * (u * u + v * v + w * w)
@@ -145,22 +156,21 @@ class FlowData(FieldData):
         self.n_val += 1
         self.data_list.append('T')
 
-        data = self.data
-        rho = data[:, 0]
-        p = data[:, 4]
+        rho = self.data[:, 0]
+        p = self.data[:, 4]
         temp = 1.4 * p / rho
 
         self.data = np.hstack((self.data, temp.reshape((self.n_cell, 1))))
 
 
 class OfData(FlowData):
-    def __init__(self, mesh, path_dir, path_u, path_p, path_rho, add_e=False, add_temp=False):
+    def __init__(self, mesh, path_dir, path_u, path_p, path_rho, add_e=False, add_pres=False):
         self.path_dir = path_dir
         self.path_u = path_u
         self.path_p = path_p
         self.path_rho = path_rho
 
-        super(OfData, self).__init__(mesh, add_e=add_e, add_temp=add_temp)
+        super(OfData, self).__init__(mesh, add_e=add_e, add_pres=add_pres)
 
     def _init_field(self):
         self.update_from_file()
@@ -179,5 +189,9 @@ class OfData(FlowData):
         p_data = Ofpp.parse_internal_field(self.path_dir + path_p)
         rho_data = Ofpp.parse_internal_field(self.path_dir + path_rho)
 
+        # Calculate temperature
+        t_data = 1.4 * p_data / rho_data
+
         self.n_cell = u_data.shape[0]
-        self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
+        # self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
+        self.data = np.hstack((rho_data[:, np.newaxis], u_data, t_data[:, np.newaxis]))

@@ -79,17 +79,17 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             u = vec_face[1]
             v = vec_face[2]
             w = vec_face[3]
-            p = vec_face[4]
-            e = vec_face[5]
-            # t = vec_f[6]
+            # t = vec_f[4]
+            p = vec_face[5]
+            e = vec_face[6]
 
             rho_ave = ave_face[0]
             u_ave = ave_face[1]
             v_ave = ave_face[2]
             w_ave = ave_face[3]
-            p_ave = ave_face[4]
-            e_ave = ave_face[5]
-            # t_ave = ave_f[6]
+            # t_ave = ave_f[4]
+            p_ave = ave_face[5]
+            e_ave = ave_face[6]
 
             f = np.empty(5, dtype=np.float64)
             f[0] = rho * u_ave + rho_ave * u
@@ -138,7 +138,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         tau_ave = self._get_stress_tensor(g_face_ave)
 
         flux[1:4] = tau @ face_normal_vec
-        energy_flux = tau @ u_ave + tau_ave @ u_vel + self.coef_heat_flux * g_face[6, :]
+        energy_flux = tau @ u_ave + tau_ave @ u_vel + self.coef_heat_flux * g_face[4, :]
         flux[4] = energy_flux @ face_normal_vec
         return flux
 
@@ -155,8 +155,8 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         u_ave = self.ave_data[id_cell, 1]
         v_ave = self.ave_data[id_cell, 2]
         w_ave = self.ave_data[id_cell, 3]
-        # p_ave = ave_data[id_cell, 4]
-        e_ave = self.ave_data[id_cell, 5]
+        # t_ave = ave_data[id_cell, 4]
+        e_ave = self.ave_data[id_cell, 6]
         ra_inv = 1.0 / rho_ave
 
         vec_pr = np.empty(5, dtype=np.float64)
@@ -262,3 +262,22 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         tensor[2, 1] = tensor[1, 2]
 
         return tensor
+
+
+class LNS2(LNS):
+    def __init__(self, mesh, ave_field, mu, pr, is2d=False):
+        super(LNS2, self).__init__(mesh, ave_field, mu, pr, is2d)
+
+    def formula(self, data, id_cell, **kwargs):
+        eps = 1.0e-6  # Knoll and Keyes, 2004
+
+        self._data = self.ave_data
+
+    def _conv2prime(self, vec_conv, id_cell):
+        pass
+
+    def _calc_inviscid_flux(self, id_cell, nb_cell, nb_face):
+        pass
+
+    def _calc_viscous_flux(self, id_cell, nb_cell, nb_face):
+        pass
