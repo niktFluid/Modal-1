@@ -14,6 +14,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.pr = pr
         self.coef_heat_flux = mu / ((self.gamma - 1) * pr)
 
+        self.n_cell = mesh.n_cell
+        self.n_val = 7
+
         self.mesh = mesh
         self.bd_cond = BDcond(mesh)
         # self._vol_weight = mesh.volumes / np.sum(mesh.volumes)
@@ -23,52 +26,54 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         super(LNS, self).__init__(mesh, n_return=5, sub_list=sub_list)
 
-        self._ave_field = ave_field
+        self._data = None
+        self.ave_data = ave_field.data
         self._grad_ave = self._grad_ave_field()
 
         self._ref_cells = [0]
-        self._grad_refs = [np.empty(0)]
+        self._grad_refs = {}
 
     def _return_ref_cells(self, id_cell):
         cell_list = [id_cell] + self.mesh.cell_neighbours(id_cell)
         ref_cells = [i_cell for i_cell in cell_list if i_cell >= 0]
         return list(set(ref_cells))
 
+    @staticmethod
+    def _get_face_direction(id_cell, nb_cell):
+        return -1.0 + 2.0 * float(nb_cell > id_cell >= 0)
+
     def formula(self, data, id_cell, **kwargs):
+        self._data = data
         self._ref_cells = self._return_ref_cells(id_cell)
-        self._grad_data(data)
+        self._grad_data()
 
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
-
         rhs_vec = np.zeros(5, dtype=np.float64)
+
         for nb_cell, nb_face in zip(nb_cells, faces):
             area = self.mesh.face_area[nb_face]
-            flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
+            flip = self._get_face_direction(id_cell, nb_cell)
 
-            rhs_vec -= self._calc_inviscid_flux(data, id_cell, nb_cell, nb_face) * area * flip
-            rhs_vec += self._calc_viscous_flux(data, id_cell, nb_cell, nb_face) * area * flip
+            rhs_vec -= self._calc_inviscid_flux(id_cell, nb_cell, nb_face) * area * flip
+            rhs_vec += self._calc_viscous_flux(id_cell, nb_cell, nb_face) * area * flip
         return self._conv2prime(rhs_vec, id_cell) / self.mesh.volumes[id_cell]
 
-    def _grad_data(self, data):
+    def _grad_data(self):
         def grad(id_cell):
-            grad_data = np.empty((7, 3), dtype=np.float64)
-            for i_val in range(7):
-                grad_data[i_val] = self._grad.formula(data, id_cell, i_val)
+            grad_data = np.empty((self.n_val, 3), dtype=np.float64)
+            for i_val in range(self.n_val):
+                grad_data[i_val] = self._grad.formula(self._data, id_cell, i_val)
             return grad_data
-        self._grad_refs = [grad(i_cell) for i_cell in self._ref_cells]
+        self._grad_refs = {i_cell: grad(i_cell) for i_cell in self._ref_cells}
 
     def _grad_ave_field(self):
-        data = self._ave_field.data
-        n_cell = self._ave_field.n_cell
-        n_val = self._ave_field.n_val
-
-        grad_ave = np.empty((n_cell, n_val, 3), dtype=np.float64)
-        for i_cell, i_val in product(range(n_cell), range(n_val)):
-            grad_ave[i_cell, i_val] = self._grad.formula(data, i_cell, i_val)
+        grad_ave = np.empty((self.n_cell, self.n_val, 3), dtype=np.float64)
+        for i_cell, i_val in product(range(self.n_cell), range(self.n_val)):
+            grad_ave[i_cell, i_val] = self._grad.formula(self.ave_data, i_cell, i_val)
         return grad_ave
 
-    def _calc_inviscid_flux(self, data, id_cell, nb_cell, nb_face):
+    def _calc_inviscid_flux(self, id_cell, nb_cell, nb_face):
         def flux(vec_face, ave_face):
             rho = vec_face[0]
             u = vec_face[1]
@@ -105,32 +110,31 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         # ave_fb = self.mesh.conv_vel(ave_b, nb_face)
         # fb = flux(vec_fb, ave_fb)
 
-        vec_0, vec_nb = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+        vec_0, vec_nb = self._get_cell_vals(self._data, id_cell, nb_cell, nb_face)
         vec_f = self.mesh.conv_vel(0.5 * (vec_0 + vec_nb), nb_face)
 
-        ave_0, ave_nb = self._get_cell_vals(self._ave_field.data, id_cell, nb_cell, nb_face)
+        ave_0, ave_nb = self._get_cell_vals(self.ave_data, id_cell, nb_cell, nb_face)
         ave_f = self.mesh.conv_vel(0.5 * (ave_0 + ave_nb), nb_face)
 
         # return self.mesh.conv_vel(0.5 * (fa + fb), nb_face, inverse=True)
         return self.mesh.conv_vel(flux(vec_f, ave_f), nb_face, inverse=True)
 
-    def _calc_viscous_flux(self, data, id_cell, nb_cell, nb_face):
+    def _calc_viscous_flux(self, id_cell, nb_cell, nb_face):
         flux = np.zeros(5, dtype=np.float64)
-        face_normal_vec = self.mesh.face_mat[nb_face, 0]
+        face_normal_vec = self.mesh.face_mat[nb_face, 0]  # * self._get_face_direction(id_cell, nb_cell)
 
-        vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+        vec_a, vec_b = self._get_cell_vals(self._data, id_cell, nb_cell, nb_face)
         vec_f = 0.5 * (vec_a + vec_b)
         u_vel = vec_f[1:4]
 
-        g_face = self._get_face_grad(data, id_cell, nb_cell, nb_face)
+        g_face = self._get_face_grad(self._data, self._grad_refs, id_cell, nb_cell, nb_face)
         tau = self._get_stress_tensor(g_face)
 
-        ave_data = self._ave_field.data
-        ave_a, ave_b = self._get_cell_vals(ave_data, id_cell, nb_cell, nb_face)
+        ave_a, ave_b = self._get_cell_vals(self.ave_data, id_cell, nb_cell, nb_face)
         ave_f = 0.5 * (ave_a + ave_b)
         u_ave = ave_f[1:4]
 
-        g_face_ave = self._get_face_grad(ave_data, id_cell, nb_cell, nb_face, ave_value=True)
+        g_face_ave = self._get_face_grad(self.ave_data, self._grad_ave, id_cell, nb_cell, nb_face)
         tau_ave = self._get_stress_tensor(g_face_ave)
 
         flux[1:4] = tau @ face_normal_vec
@@ -147,13 +151,12 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         rw = vec_conv[3]
         e = vec_conv[4]
 
-        ave_data = self._ave_field.data
-        rho_ave = ave_data[id_cell, 0]
-        u_ave = ave_data[id_cell, 1]
-        v_ave = ave_data[id_cell, 2]
-        w_ave = ave_data[id_cell, 3]
+        rho_ave = self.ave_data[id_cell, 0]
+        u_ave = self.ave_data[id_cell, 1]
+        v_ave = self.ave_data[id_cell, 2]
+        w_ave = self.ave_data[id_cell, 3]
         # p_ave = ave_data[id_cell, 4]
-        e_ave = ave_data[id_cell, 5]
+        e_ave = self.ave_data[id_cell, 5]
         ra_inv = 1.0 / rho_ave
 
         vec_pr = np.empty(5, dtype=np.float64)
@@ -180,11 +183,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         return vec_pr
 
     def _get_cell_vals(self, data, id_cell, nb_cell, nb_face):
-        n_val = data.shape[1]
-
         def get_vals(i_cell):
-            val_vec = np.empty(n_val, dtype=np.float64)
-            for i_val in range(n_val):
+            val_vec = np.empty(self.n_val, dtype=np.float64)
+            for i_val in range(self.n_val):
                 val_vec[i_val] = data[i_cell, i_val]
             return val_vec
 
@@ -193,20 +194,13 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             val_vec_nb = get_vals(nb_cell)
         else:  # For boundary cells
             val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face)
-
         return val_vec_0, val_vec_nb
 
-    def _get_grad_vec(self, i_cell, ave_value):
-        if not ave_value:
-            return self._grad_refs[self._ref_cells.index(i_cell)]
-        else:
-            return self._grad_ave[i_cell]
-
-    def _get_face_vals(self, data, id_cell, nb_cell, nb_face, ave_value=False):
+    def _get_face_vals(self, data, grad_data, id_cell, nb_cell, nb_face):
         val_0, val_nb = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
 
         def reconstruct(val_vec, ind):
-            grad = self._get_grad_vec(ind, ave_value)
+            grad = grad_data[ind]
             r_vec = self.mesh.face_centers[nb_face] - self.mesh.centers[ind]
             return val_vec + grad @ r_vec
 
@@ -215,34 +209,30 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             val_vec_nb = reconstruct(val_nb, nb_cell)
         else:
             val_vec_0, val_vec_nb = val_0, val_nb
-        # val_vec_0 = 0.5 * (val_0 + val_nb)
-        # val_vec_nb = 0.5 * (val_0 + val_nb)
 
         return val_vec_0, val_vec_nb
 
-    def _get_face_grad(self, data, id_cell, nb_cell, nb_face, ave_value=False):
-        grad_id = self._get_grad_vec(id_cell, ave_value)
+    def _get_face_grad(self, data, grad_data, id_cell, nb_cell, nb_face):
+        grad_id = grad_data[id_cell]
         vol_id = self.mesh.volumes[id_cell]
         if nb_cell >= 0:  # For inner faces
-            grad_nb = self._get_grad_vec(nb_cell, ave_value)
+            grad_nb = grad_data[nb_cell]
             vol_nb = self.mesh.volumes[nb_cell]
         else:  # For boundary faces.
-            grad_nb = self._get_grad_vec(id_cell, ave_value)
+            grad_nb = grad_data[id_cell]
             vol_nb = self.mesh.volumes[id_cell]
 
         grad_face = (grad_id * vol_nb + grad_nb * vol_id) / (vol_id + vol_nb)
+        # grad_face = 0.5 * (grad_id + grad_nb)
 
         # For prevent even-odd instability.
-        # vec_lr = self._get_pos_diff(id_cell, nb_cell, nb_face)
-        # inv_lr = 1.0 / (vec_lr[0]*vec_lr[0] + vec_lr[1]*vec_lr[1] + vec_lr[2]*vec_lr[2])
-        # vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
-        # coef = (grad_face @ vec_lr - (vec_b - vec_a)) * inv_lr
+        flip = self._get_face_direction(id_cell, nb_cell)
+        vec_lr = self.mesh.vec_lr[nb_face]
+        inv_lr = 1.0 / (vec_lr[0]*vec_lr[0] + vec_lr[1]*vec_lr[1] + vec_lr[2]*vec_lr[2])
+        vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
+        coef = (grad_face @ vec_lr - (vec_b - vec_a) * flip) * inv_lr
 
-        return grad_face  # - coef.reshape(7, 1) @ vec_lr.reshape(1, 3) * inv_lr
-
-    def _get_pos_diff(self, id_cell, nb_cell, nb_face):
-        flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
-        return self.mesh.vec_lr[nb_face] * flip
+        return grad_face - coef.reshape(7, 1) @ vec_lr.reshape(1, 3) * inv_lr
 
     def _get_stress_tensor(self, grad):
         tensor = np.empty((3, 3), dtype=np.float64)
