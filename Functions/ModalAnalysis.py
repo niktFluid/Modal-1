@@ -1,3 +1,4 @@
+from itertools import product
 import os
 import numpy as np
 import pickle
@@ -6,6 +7,7 @@ from scipy.sparse import linalg
 from scipy import sparse
 
 from Functions.FieldData import FieldData
+from Functions.LinearizedNS import NS
 
 
 class ModalData(FieldData):
@@ -225,3 +227,18 @@ class RandomizedResolventMode(ResolventMode):
 
         matO = sparse.random(m, k, density=1.0, format='csc', dtype=np.float64, data_rvs=rvs.normal_func)
         return linalg.spsolve(self.operator, matO)
+
+
+class RHS(FieldData):
+    def __init__(self, mesh, field, mu, pr, is2d=False):
+        super(RHS, self).__init__(mesh, n_val=5, data_list=['rho', 'u', 'v', 'w', 'T'])
+
+        self.rhs_ns = NS(mesh, field, mu, pr, is2d)
+        self._calculate()
+
+    def _init_field(self, *args, **kwargs):
+        self.data = np.empty((self.n_cell, self.n_val), dtype=np.float64)
+
+    def _calculate(self):
+        for i_cell in range(self.n_cell):
+            self.data[i_cell] = self.rhs_ns.formula(i_cell)

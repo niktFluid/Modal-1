@@ -65,8 +65,12 @@ class Mesh:
             face_mat = self.face_mat[id_face].T
         else:
             face_mat = self.face_mat[id_face]
-        val_vec[1:4] = face_mat @ val_vec[1:4]
-        return val_vec
+
+        u_vel = val_vec[1:4]
+        vec_loc = np.copy(val_vec)
+
+        vec_loc[1:4] = face_mat @ u_vel
+        return vec_loc
 
 
 class OfMesh(Mesh):
@@ -101,8 +105,8 @@ class OfMesh(Mesh):
         self.volumes = mesh.cell_volumes
 
         self._set_boundary(mesh)
-        self._calc_face_vec()
         self._calc_face_centers()
+        self._calc_face_vec()
         self._calc_vec_lr()
 
     def _calc_face_vec(self):
@@ -120,6 +124,9 @@ class OfMesh(Mesh):
             self.face_area[i_face] = np.linalg.norm(vec_c)
 
             vec_n = vec_c / np.linalg.norm(vec_c)  # Surface normal vector
+            flip = self._check_normal_vec(i_face, vec_n)
+            vec_n *= flip
+
             vec_t1 = vec_a / np.linalg.norm(vec_a)  # Surface tangential vector 1
             vec_t2 = np.cross(vec_n, vec_t1)
 
@@ -151,6 +158,21 @@ class OfMesh(Mesh):
         # self.face_vec_ni = normalize(vec_trans(0))
         # self.face_vec_t1i = normalize(vec_trans(1))
         # self.face_vec_t2i = normalize(vec_trans(2))
+
+    def _check_normal_vec(self, i_face, vec_n):
+        id_o = self.owner[i_face]
+        id_n = self.neighbour[i_face]
+
+        if id_n >= 0:  # For inner faces
+            vec_lr = self.centers[id_n] - self.centers[id_o]
+        else:  # For boundary faces
+            vec_lr = self.face_centers[i_face] - self.centers[id_o]
+
+        if np.dot(vec_lr, vec_n) < 0.0:
+            print('Flip normal vector!')
+            return -1.0
+        else:
+            return 1.0
 
     def _calc_face_centers(self):
         points = self.nodes[self.face_nodes]

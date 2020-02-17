@@ -133,6 +133,7 @@ class PlaceHolder:
         # if 0 <= i_val < 5:
         if 0 <= i_val <= 4:
             # for Rho, u vel, v vel, w vel, T
+            # OR for rho, RhoU, RhoV, RhoW, E
             return float(i_cell == self.i_cell and i_val == self.i_val)
         elif i_val == 5:
             return self._calc_pressure(i_cell)

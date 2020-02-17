@@ -7,7 +7,7 @@ import configparser
 from mpi4py import MPI
 
 from Functions.Mesh import OfMesh
-from Functions.FieldData import OfData
+from Functions.FieldData import OfData, OfConData
 
 from Functions.MatMaker import MatMaker
 from Functions.LinearizedNS import LNS, LNS2
@@ -55,7 +55,7 @@ def MakeOperator2(case_dir, time, filename, mu, pr):
     comm = MPI.COMM_WORLD
 
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
-    ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
+    ave_field = OfConData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
     linear_ns = LNS2(mesh, ave_field, mu=mu, pr=pr, is2d=True)  # viscosity and Prandtl number
     mat_maker = MatMaker(linear_ns, mesh.n_cell, mpi_comm=comm)

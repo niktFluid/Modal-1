@@ -114,8 +114,8 @@ class FieldData:
 
 
 class FlowData(FieldData):
-    def __init__(self, mesh, add_e=False, add_pres=False):
-        super(FlowData, self).__init__(mesh)
+    def __init__(self, mesh, add_e=False, add_pres=False, data_list=None):
+        super(FlowData, self).__init__(mesh, data_list=data_list)
 
         if add_pres:
             self._add_pressure()
@@ -195,3 +195,45 @@ class OfData(FlowData):
         self.n_cell = u_data.shape[0]
         # self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
         self.data = np.hstack((rho_data[:, np.newaxis], u_data, t_data[:, np.newaxis]))
+
+
+class OfConData(FlowData):
+    def __init__(self, mesh, path_dir, path_u, path_p, path_rho):
+        self.path_dir = path_dir
+        self.path_u = path_u
+        self.path_p = path_p
+        self.path_rho = path_rho
+        d_list = ['Rho', 'RhoU', 'RhoV', 'RhoW', 'E']
+
+        super(OfConData, self).__init__(mesh, add_e=False, add_pres=False, data_list=d_list)
+
+    def _init_field(self):
+        self.update_from_file()
+
+    def update_from_file(self, path_u=None, path_p=None, path_rho=None):
+        if path_u is None:
+            path_u = self.path_u
+
+        if path_p is None:
+            path_p = self.path_p
+
+        if path_rho is None:
+            path_rho = self.path_rho
+
+        u_data = Ofpp.parse_internal_field(self.path_dir + path_u)
+        p_data = Ofpp.parse_internal_field(self.path_dir + path_p)
+        rho_data = Ofpp.parse_internal_field(self.path_dir + path_rho)
+
+        # Calculate conservative variables
+        u = u_data[:, 0]
+        v = u_data[:, 1]
+        w = u_data[:, 2]
+
+        ru = rho_data * u
+        rv = rho_data * v
+        rw = rho_data * w
+        e = p_data / (1.4 - 1.0) + 0.5 * rho_data * (u * u + v * v + w * w)
+
+        self.n_cell = u_data.shape[0]
+        # self.data = np.hstack((rho_data[:, np.newaxis], u_data, p_data[:, np.newaxis]))
+        self.data = np.vstack((rho_data, ru, rv, rw, e)).T
