@@ -10,7 +10,7 @@ from Functions.Mesh import OfMesh
 from Functions.FieldData import OfData
 
 from Functions.MatMaker import MatMaker
-from Functions.LinearizedNS import LNS
+from Functions.LinearizedNS import LNS, LNS2
 
 
 def main(param_file='Parameter.dat', profile='Default'):
@@ -34,19 +34,31 @@ def main(param_file='Parameter.dat', profile='Default'):
     mu = float(params['Viscosity'])
     pr = float(params['PrandtlNumber'])
 
-    MakeOperator(case_dir, time_dir, operator_name, mu, pr)
+    # MakeOperator(case_dir, time_dir, operator_name, mu, pr)
+    MakeOperator2(case_dir, time_dir, operator_name, mu, pr)
 
 
 def MakeOperator(case_dir, time, filename, mu, pr):
     comm = MPI.COMM_WORLD
 
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
-    ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean', add_e=True, add_temp=True)
+    ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean', add_e=True, add_pres=True)
 
-    # linear_ns = LNS(mesh, ave_field, mu=mu, pr=pr, is2d=True)  # viscosity and Prandtl number
     linear_ns = LNS(mesh, ave_field, mu=mu, pr=pr)  # viscosity and Prandtl number
 
     mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field=ave_field, mpi_comm=comm)
+    mat_maker.make_mat()
+    mat_maker.save_mat(filename)
+
+
+def MakeOperator2(case_dir, time, filename, mu, pr):
+    comm = MPI.COMM_WORLD
+
+    mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
+    ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
+
+    linear_ns = LNS2(mesh, ave_field, mu=mu, pr=pr, is2d=True)  # viscosity and Prandtl number
+    mat_maker = MatMaker(linear_ns, mesh.n_cell, mpi_comm=comm)
     mat_maker.make_mat()
     mat_maker.save_mat(filename)
 

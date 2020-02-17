@@ -177,7 +177,7 @@ class ResolventMode(ModalData):
     def _get_norm_quadrature(self):
         ave_data = self._ave_field.data
         rho_data = ave_data[:, 0]
-        t_data = ave_data[:, 6]
+        t_data = ave_data[:, 4]
 
         gamma = 1.4  # heat ratio
         r_gas = 1.0 / 1.4  # Non-dimensionalized gas constant.
