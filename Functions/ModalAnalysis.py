@@ -231,7 +231,7 @@ class RandomizedResolventMode(ResolventMode):
 
 class RHS(FieldData):
     def __init__(self, mesh, field, mu, pr, is2d=False):
-        super(RHS, self).__init__(mesh, n_val=5, data_list=['rho', 'u', 'v', 'w', 'T'])
+        super(RHS, self).__init__(mesh, n_val=5, data_list=['Rho', 'RhoU', 'RhoV', 'RhoW', 'E'])
 
         self.rhs_ns = NS(mesh, field, mu, pr, is2d)
         self._calculate()

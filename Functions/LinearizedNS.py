@@ -264,7 +264,7 @@ class LNS2(LNS):  # Linearized Navier-Stokes equations. Based on Knoll and Keyes
 
     def formula(self, data, id_cell, **kwargs):
         b = 1.0-6
-        eps = b * (self._con_ave[data.i_cell, data.i_val] + b)
+        eps = b * self._con_ave[data.i_cell, data.i_val] + b
 
         con_data = self._con_ave
         con_data[data.i_cell, data.i_val] += eps
