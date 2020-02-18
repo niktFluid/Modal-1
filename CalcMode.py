@@ -8,6 +8,7 @@ from Functions.Mesh import OfMesh
 from Functions.FieldData import OfData
 from Functions.ModalAnalysis import ResolventMode as Resolvent
 from Functions.ModalAnalysis import LinearStabilityMode as LSMode
+from Functions.ModalAnalysis import RandomizedResolventMode as RandomizedResolvent
 
 
 def main(param_file='Parameter.dat', profile='Default'):
@@ -45,6 +46,13 @@ def main(param_file='Parameter.dat', profile='Default'):
 
         CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
 
+    elif mode == 'RandomizedResolvent':
+        omega = float(params['Omega'])
+        alpha = float(params['Alpha'])
+        r_mode = params['ResolventMode']
+
+        CalcRandomizedResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
+
     print('Done.')
 
 
@@ -62,6 +70,16 @@ def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alph
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
     resolvent_mode = Resolvent(mesh, ave_field, operator_name, k=k, omega=omega, alpha=alpha, mode=mode)
+    resolvent_mode.solve()
+    resolvent_mode.save_data(save_name + '.pickle')
+    resolvent_mode.vis_tecplot(save_name + '.dat')
+
+
+def CalcRandomizedResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alpha=0.0, mode='Both'):
+    mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
+    ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
+
+    resolvent_mode = RandomizedResolvent(mesh, ave_field, operator_name, k=k, omega=omega, alpha=alpha, mode=mode)
     resolvent_mode.solve()
     resolvent_mode.save_data(save_name + '.pickle')
     resolvent_mode.vis_tecplot(save_name + '.dat')

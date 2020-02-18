@@ -34,8 +34,8 @@ def main(param_file='Parameter.dat', profile='Default'):
     mu = float(params['Viscosity'])
     pr = float(params['PrandtlNumber'])
 
-    # MakeOperator(case_dir, time_dir, operator_name, mu, pr)
-    MakeOperator2(case_dir, time_dir, operator_name, mu, pr)
+    MakeOperator(case_dir, time_dir, operator_name, mu, pr)
+    # MakeOperator2(case_dir, time_dir, operator_name, mu, pr)
 
 
 def MakeOperator(case_dir, time, filename, mu, pr):

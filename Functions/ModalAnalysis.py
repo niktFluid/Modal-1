@@ -8,6 +8,7 @@ from scipy import sparse
 
 from Functions.FieldData import FieldData
 from Functions.LinearizedNS import NS
+from Functions.Gradient import Gradient
 
 
 class ModalData(FieldData):
@@ -185,7 +186,7 @@ class ResolventMode(ModalData):
         r_gas = 1.0 / 1.4  # Non-dimensionalized gas constant.
 
         # Chu's energy norm.
-        vols = self.mesh.volumes  # / np.linalg.norm(self.mesh.volumes)
+        vols = self.mesh.volumes / np.linalg.norm(self.mesh.volumes)
         diag_rho = vols * r_gas * t_data / rho_data
         diag_u = vols * rho_data
         diag_t = vols * r_gas * rho_data / ((gamma - 1) * t_data)
@@ -201,32 +202,35 @@ class RandomizedResolventMode(ResolventMode):
     def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode='Both', **kwargs):
         super(RandomizedResolventMode, self).__init__(mesh, ave_field, operator, omega, alpha, n_val, k, mode, **kwargs)
 
+        self._scaling = self._get_scaling_factor(ave_field.data)
+
+    def _get_scaling_factor(self, ave_data):
+        grad = Gradient(self.mesh)
+
+        grad_vel = np.zeros((self.n_cell, 3, 3), dtype=np.float64)
+        for i_cell, i_val in product(range(self.n_cell), [1, 2, 3]):
+            grad_vel[i_cell, i_val-1] = grad.formula(ave_data, i_cell, i_val)
+
+        # noinspection PyTypeChecker
+        phi = np.tile(np.linalg.norm(grad_vel, axis=(1, 2)), 5)
+
+        return sparse.diags(phi, format='csc')
+
     def _calculate(self):
-        matY = self._get_sketch()
-        matQ, _ = sp.linalg.qr(matY)
+        m = self.n_cell * 5  # = self.operator.shape[0]
+        k = self._k  # Number of mode
 
-        matQ = sparse.csc_matrix(matQ)
-        matB = linalg.spsolve(self.operator.H, matQ)
+        matO = self._scaling @ np.random.normal(0.0, 0.1, (m, k))
+        matY = linalg.spsolve(self.operator, matO)
+        matQ, _ = sp.linalg.qr(matY, mode='economic')
+        matB = matQ.T.conj() @ self.operator
+        _, _, V = sp.linalg.svd(matB, full_matrices=False)
+        matUS = linalg.spsolve(self.operator, V.T.conj())
+        U, Sigma, Vapp = sp.linalg.svd(matUS, full_matrices=False)
+        V = V.T.conj() @ Vapp.T.conj()
 
-        _, _, V = sp.linalg.svd(matB.H)
-        matUS = linalg.spsolve(self.operator, V.H)
-
-        Sigma = sp.linalg.norm(matUS, ord=2, axis=1)
-        U = matUS / Sigma
-
-        return Sigma, U, V
-
-    class CustomRand(np.random.RandomState):
-        def normal_func(self, k):
-            return self.normal(loc=0.0, scale=1.0, size=k)
-
-    def _get_sketch(self):
-        m = self.operator.shape[0]
-        k = self._k
-        rvs = self.CustomRand()
-
-        matO = sparse.random(m, k, density=1.0, format='csc', dtype=np.float64, data_rvs=rvs.normal_func)
-        return linalg.spsolve(self.operator, matO)
+        print('Singular values: ', Sigma)
+        return self.omega, Sigma, U, V
 
 
 class RHS(FieldData):
