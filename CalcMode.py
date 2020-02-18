@@ -4,6 +4,9 @@ import errno
 import argparse
 import configparser
 
+from itertools import product
+import numpy as np
+
 from Functions.Mesh import OfMesh
 from Functions.FieldData import OfData
 from Functions.ModalAnalysis import ResolventMode as Resolvent
@@ -47,9 +50,17 @@ def main(param_file='Parameter.dat', profile='Default'):
         CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
 
     elif mode == 'RandomizedResolvent':
-        omega = float(params['Omega'])
-        alpha = float(params['Alpha'])
         r_mode = params['ResolventMode']
+
+        s_omega = float(params['OmegaStart'])
+        e_omega = float(params['OmegaEnd'])
+        n_omega = int(params['OmegaNum'])
+        omega = (s_omega, e_omega, n_omega)
+
+        s_alpha = float(params['AlphaStart'])
+        e_alpha = float(params['AlphaEnd'])
+        n_alpha = int(params['AlphaNum'])
+        alpha = (s_alpha, e_alpha, n_alpha)
 
         CalcRandomizedResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
 
@@ -69,20 +80,28 @@ def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alph
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
+    grid_list = [(omega, alpha)]
     resolvent_mode = Resolvent(mesh, ave_field, operator_name, k=k, omega=omega, alpha=alpha, mode=mode)
-    resolvent_mode.solve()
-    resolvent_mode.save_data(save_name + '.pickle')
-    resolvent_mode.vis_tecplot(save_name + '.dat')
+    resolvent_mode.solve(grid_list, save_name)
 
 
-def CalcRandomizedResolvent(case_dir, time, operator_name, save_name, k=3, omega=0.0, alpha=0.0, mode='Both'):
+def CalcRandomizedResolvent(case_dir, time, operator_name, save_name, k=3, omega=None, alpha=None, mode='Both'):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
-    resolvent_mode = RandomizedResolvent(mesh, ave_field, operator_name, k=k, omega=omega, alpha=alpha, mode=mode)
-    resolvent_mode.solve()
-    resolvent_mode.save_data(save_name + '.pickle')
-    resolvent_mode.vis_tecplot(save_name + '.dat')
+    if isinstance(omega, tuple):
+        omega_array = np.linspace(*omega)
+    else:
+        omega_array = np.array([omega])
+
+    if isinstance(alpha, tuple):
+        alpha_array = np.linspace(*alpha)
+    else:
+        alpha_array = np.array([alpha])
+
+    grid_list = [(o, a) for o, a in product(omega_array, alpha_array)]
+    resolvent_mode = RandomizedResolvent(mesh, ave_field, operator_name, k=k, mode=mode)
+    resolvent_mode.solve(grid_list, save_name)
 
 
 if __name__ == '__main__':

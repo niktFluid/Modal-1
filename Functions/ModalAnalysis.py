@@ -25,7 +25,7 @@ class ModalData(FieldData):
             'k': self._k,
             'sigma': None,
             'which': 'LM',
-            # 'tol': 1.0e-8,
+            'tol': 1.0e-8,
         }
 
     def _init_field(self, *args, **kwargs):
@@ -40,8 +40,8 @@ class ModalData(FieldData):
     def _set_operator(self, operator, **kwargs):
         raise NotImplementedError
 
-    def solve(self):  # kwargs for ARPACK.
-        self._vec_data = self._calculate()
+    def solve(self, **kwargs):
+        self._vec_data = self._calculate(**kwargs)
         self._set_data(self._vec_data)  # Set self.data and self._vec_data for the visualization.
 
     def save_data(self, filename='modalData.pickle'):
@@ -52,7 +52,7 @@ class ModalData(FieldData):
         self._vec_data = pickle.load(filename)
         self._set_data(self._vec_data)
 
-    def _calculate(self):
+    def _calculate(self, **kwargs):
         raise NotImplementedError
 
     def _set_data(self, data):
@@ -102,17 +102,41 @@ class LinearStabilityMode(ModalData):
 
 
 class ResolventMode(ModalData):
-    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode=None, **kwargs):
+    def __init__(self, mesh, ave_field, operator, n_val=5, k=6, mode=None, **kwargs):
         self._ave_field = ave_field
-        self.omega = omega
-        self.alpha = alpha
 
         self._mode = mode  # 'F' for the forcing mode or 'R' for the response mode. 'None' will get both.
         self._mode_f = mode == 'Both' or mode == 'Forcing'
         self._mode_r = mode == 'Both' or mode == 'Response'
 
+        self._qi = None
+        self._qo = None
+        self._resolvent = None
+
         super(ResolventMode, self).__init__(mesh, operator, n_val, k, **kwargs)
         self._arpack_options.update(sigma=0.0, which='LM', **kwargs)
+
+    def solve(self, grid_list, save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+
+        gain_file = save_dir + '/gains.dat'
+        for i_grid, (omega, alpha) in enumerate(grid_list):
+            print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha) + '.')
+
+            resolvent = self._make_resolvent(omega, alpha)
+            gain, mode_r, mode_f = self._calculate(resolvent)
+
+            with open(gain_file, mode='a') as f_obj:
+                w_list = [i_grid, omega, alpha] + list(gain)
+                f_obj.writelines(list(map(lambda x: str(x) + ' ', w_list)) + ['\n'])
+            print('Gains: ', gain)
+
+            data = (omega, alpha, gain, mode_r, mode_f)
+            self._set_data(data)
+
+            save_name = save_dir + '/modes_{:0=5}'.format(i_grid)
+            self.save_data(save_name + '.pickle')
+            self.vis_tecplot(save_name + '.dat')
 
     def _data_num(self):
         if self._mode == 'Both':
@@ -131,34 +155,36 @@ class ResolventMode(ModalData):
         return data_list
 
     def _set_operator(self, operator, **kwargs):
-        qi, qo = self._get_norm_quadrature()
-        eye = sparse.eye(operator.shape[0], dtype=np.complex128, format='csc')
-        omegaI = 1.0j * (self.omega + 1.0j * self.alpha) * eye
+        self._qi, self._qo = self._get_norm_quadrature()
+        return operator
 
-        return qo * (-omegaI - operator) * qi
+    def _make_resolvent(self, omega, alpha):
+        eye = sparse.eye(self.operator.shape[0], dtype=np.complex128, format='csc')
+        omegaI = 1.0j * (omega + 1.0j * alpha) * eye
+        return self._qo * (-omegaI - self.operator) * self._qi
 
-    def _calculate(self):
+    def _calculate(self, resolvent):
         svs = None
         if self._mode_f:
-            matF = self.operator * self.operator.H
+            matF = resolvent * resolvent.H
             svs, mode_f = linalg.eigsh(matF, **self._arpack_options)
             print('Eigenvalues for forcing: ', svs)
         else:
             mode_f = None
 
         if self._mode_r:
-            matR = self.operator.H * self.operator
+            matR = resolvent.H * resolvent
             svs, mode_r = linalg.eigsh(matR, **self._arpack_options)
             print('Eigenvalues for response: ', svs)
         else:
             mode_r = None
 
         print('Singular values: ', np.sqrt(svs))
-        print('Gains: ', 1.0 / np.sqrt(svs))
-        return self.omega, 1.0 / np.sqrt(svs), mode_r, mode_f
+        # print('Gains: ', 1.0 / np.sqrt(svs))
+        return 1.0 / np.sqrt(svs), mode_r, mode_f
 
     def _set_data(self, data):
-        _, _, r_vecs, f_vecs = data
+        _, _, _, r_vecs, f_vecs = data
 
         coef_ind_1 = 1 + int(self._mode == 'Both')
         coef_ind_2 = self._n_q * int(self._mode == 'Both')
@@ -177,7 +203,7 @@ class ResolventMode(ModalData):
                 i_end = i_start + self._n_q
                 self.data[:, i_start:i_end] = np.real(rw_vec)
 
-    def _get_norm_quadrature(self):
+    def _get_norm_quadrature(self):  # Chu's energy norm.
         ave_data = self._ave_field.data
         rho_data = ave_data[:, 0]
         t_data = ave_data[:, 4]
@@ -185,7 +211,6 @@ class ResolventMode(ModalData):
         gamma = 1.4  # heat ratio
         r_gas = 1.0 / 1.4  # Non-dimensionalized gas constant.
 
-        # Chu's energy norm.
         vols = self.mesh.volumes / np.linalg.norm(self.mesh.volumes)
         diag_rho = vols * r_gas * t_data / rho_data
         diag_u = vols * rho_data
@@ -199,8 +224,8 @@ class ResolventMode(ModalData):
 
 
 class RandomizedResolventMode(ResolventMode):
-    def __init__(self, mesh, ave_field, operator, omega, alpha=0.0, n_val=5, k=6, mode='Both', **kwargs):
-        super(RandomizedResolventMode, self).__init__(mesh, ave_field, operator, omega, alpha, n_val, k, mode, **kwargs)
+    def __init__(self, mesh, ave_field, operator, n_val=5, k=6, mode='Both', **kwargs):
+        super(RandomizedResolventMode, self).__init__(mesh, ave_field, operator, n_val, k, mode, **kwargs)
 
         self._scaling = self._get_scaling_factor(ave_field.data)
 
@@ -216,23 +241,21 @@ class RandomizedResolventMode(ResolventMode):
 
         return sparse.diags(phi, format='csc')
 
-    def _calculate(self):
-        m = self.n_cell * 5  # = self.operator.shape[0]
+    def _calculate(self, resolvent):
+        m = self.n_cell * 5  # = resolvent.shape[0]
         k = self._k  # Number of mode
 
         matO = self._scaling @ np.random.normal(0.0, 0.1, (m, k))
-        matY = linalg.spsolve(self.operator, matO)
+        matY = linalg.spsolve(resolvent, matO)
         matQ, _ = sp.linalg.qr(matY, mode='economic')
-        matB = linalg.spsolve(self.operator.T.conj(), matQ)
-        matB = matB.T.conj()
-        # matB = matQ.T.conj() @ self.operator
-        _, _, V = sp.linalg.svd(matB, full_matrices=False)
-        matUS = linalg.spsolve(self.operator, V.T.conj())
+        matB = linalg.spsolve(resolvent.T.conj(), matQ)
+        _, _, V = sp.linalg.svd(matB.T.conj(), full_matrices=False)
+        matUS = linalg.spsolve(resolvent, V.T.conj())
         U, Sigma, Vapp = sp.linalg.svd(matUS, full_matrices=False)
         V = V.T.conj() @ Vapp.T.conj()
 
-        print('Singular values: ', Sigma)
-        return self.omega, Sigma, U, V
+        # print('Singular values: ', Sigma)
+        return Sigma, U, V
 
 
 class RHS(FieldData):
