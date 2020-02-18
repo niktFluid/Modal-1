@@ -223,7 +223,9 @@ class RandomizedResolventMode(ResolventMode):
         matO = self._scaling @ np.random.normal(0.0, 0.1, (m, k))
         matY = linalg.spsolve(self.operator, matO)
         matQ, _ = sp.linalg.qr(matY, mode='economic')
-        matB = matQ.T.conj() @ self.operator
+        matB = linalg.spsolve(self.operator.T.conj(), matQ)
+        matB = matB.T.conj()
+        # matB = matQ.T.conj() @ self.operator
         _, _, V = sp.linalg.svd(matB, full_matrices=False)
         matUS = linalg.spsolve(self.operator, V.T.conj())
         U, Sigma, Vapp = sp.linalg.svd(matUS, full_matrices=False)
