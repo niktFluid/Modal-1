@@ -131,8 +131,8 @@ class ResolventMode(ModalData):
                 f_obj.writelines(list(map(lambda x: str(x) + ' ', w_list)) + ['\n'])
             print('Gains: ', gain)
 
-            data = (omega, alpha, gain, mode_r, mode_f)
-            self._set_data(data)
+            self._vec_data = (omega, alpha, gain, mode_r, mode_f)
+            self._set_data(self._vec_data)
 
             save_name = save_dir + '/modes_{:0=5}'.format(i_grid)
             self.save_data(save_name + '.pickle')
