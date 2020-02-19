@@ -9,14 +9,13 @@ from matplotlib import pyplot as plt
 def main(source, l, u):
     data_array = np.loadtxt(source)
 
-    # st = data_array[:, 1] * l / (2.0 * np.pi * u)
-    st = data_array[:, 1] * l / (2.0 * np.pi * u) * 0.5
-    imag = data_array[:, 0]
+    st = data_array[:, 1] * l / (2.0 * np.pi * u)
+    imag = data_array[:, 0] * l / (2.0 * np.pi * u)
 
     figure, axis = make_figure()
 
-    axis.set_xlim(0.0, 0.5)
-    axis.set_ylim(-0.02, 0.03)
+    axis.set_xlim(0.0, 0.3)
+    axis.set_ylim(-0.011, 0.005)
 
     axis.scatter(st, imag, s=12.0)
 
@@ -35,8 +34,8 @@ def make_figure():
     figure_1 = plt.figure(figsize=(5, 3.5))
     ax1 = figure_1.add_subplot(111)
 
-    ax1.set_xlabel(r'$St$')
-    ax1.set_ylabel(r'$\omega_i$')
+    ax1.set_xlabel(r'$St = \omega_r D / 2 \pi U_\infty$')
+    ax1.set_ylabel(r'$\omega_i D / 2 \pi U_\infty$')
 
     return figure_1, ax1
 

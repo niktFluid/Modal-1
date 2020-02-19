@@ -9,8 +9,7 @@ from matplotlib import pyplot as plt
 def main(source, n_mode, l, u):
     data_array = np.loadtxt(source)
 
-    # st = data_array[:, 1] * l / (2.0 * np.pi * u)
-    st = data_array[:, 1] * l / (2.0 * np.pi * u) * 0.5
+    st = data_array[:, 1] * l / (2.0 * np.pi * u)
     gains = data_array[:, 3:]
 
     figure, axis = make_figure()
@@ -35,14 +34,9 @@ def make_figure():
     figure_1 = plt.figure(figsize=(5, 3.5))
     ax1 = figure_1.add_subplot(111)
 
-    # ax1.set_xscale('log')
     ax1.set_yscale('log')
 
-    # ax1.set_xlim(1.0e3, 3.0e6)
-    # ax1.set_ylim(1.0e-22, 1.0e-9)
-
-    # ax1.set_xlabel(r'$St = \omega D / 2 \pi U_\infty$')
-    ax1.set_xlabel(r'$St$')
+    ax1.set_xlabel(r'$St = \omega D / 2 \pi U_\infty$')
     ax1.set_ylabel(r'Gain: $\sigma$')
 
     return figure_1, ax1
