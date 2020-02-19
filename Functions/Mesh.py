@@ -121,7 +121,7 @@ class OfMesh(Mesh):
             vec_a = nodes[face_nodes[2]] - nodes[face_nodes[0]]
             vec_b = nodes[face_nodes[3]] - nodes[face_nodes[1]]
             vec_c = np.cross(vec_a, vec_b)
-            self.face_area[i_face] = np.linalg.norm(vec_c)
+            self.face_area[i_face] = 0.5 * np.linalg.norm(vec_c)
 
             vec_n = vec_c / np.linalg.norm(vec_c)  # Surface normal vector
             flip = self._check_normal_vec(i_face, vec_n)
@@ -133,31 +133,6 @@ class OfMesh(Mesh):
             self.face_mat[i_face, 0] = vec_n
             self.face_mat[i_face, 1] = vec_t1
             self.face_mat[i_face, 2] = vec_t2
-
-        # face_nodes = np.array(self.face_nodes)
-        # ind_a = np.vstack((face_nodes[:, 2], face_nodes[:, 0]))
-        # ind_b = np.vstack((face_nodes[:, 3], face_nodes[:, 1]))
-        #
-        # print(ind_a)
-        # vec_a = np.squeeze(np.diff(self.nodes[ind_a], axis=0))
-        # vec_b = np.squeeze(np.diff(self.nodes[ind_b], axis=0))
-        # vec_c = np.cross(vec_a, vec_b)
-        # self.face_area = np.linalg.norm(vec_c, axis=1)
-        #
-        # def normalize(vec):
-        #     l2 = np.linalg.norm(vec, axis=1, keepdims=True)
-        #     return vec/l2
-        # face_vec_n = normalize(vec_c)
-        # face_vec_t1 = normalize(vec_a)
-        # face_vec_t2 = np.cross(face_vec_n, face_vec_t1)
-        #
-        # def vec_trans(v_ind):
-        #     return np.vstack((self.face_vec_n[:, v_ind],
-        #                       self.face_vec_t1[:, v_ind],
-        #                       self.face_vec_t2[:, v_ind])).T
-        # self.face_vec_ni = normalize(vec_trans(0))
-        # self.face_vec_t1i = normalize(vec_trans(1))
-        # self.face_vec_t2i = normalize(vec_trans(2))
 
     def _check_normal_vec(self, i_face, vec_n):
         id_o = self.owner[i_face]
