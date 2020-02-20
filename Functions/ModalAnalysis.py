@@ -12,7 +12,8 @@ from Functions.Gradient import Gradient
 
 
 class ModalData(FieldData):
-    def __init__(self, mesh, operator_name='matL.npz', n_val=5, k=10, **kwargs):  # kwargs for set up the operator.
+    def __init__(self, mesh, operator_name='matL.npz', n_val=5, k=10, mpi_comm=None, **kwargs):
+        # kwargs for set up the operator.
         self._k = k
         self._n_q = n_val
 
@@ -27,6 +28,17 @@ class ModalData(FieldData):
             'which': 'LM',
             'tol': 1.0e-8,
         }
+
+        self._comm = mpi_comm
+        if mpi_comm is not None:
+            self._size = mpi_comm.Get_size()
+            self._rank = mpi_comm.Get_rank()
+            self._mpi = True
+        else:
+            self._size = 1
+            self._rank = 0
+            self._mpi = False
+        self._is_root = self._rank == 0
 
     def _init_field(self, *args, **kwargs):
         self.data = np.empty((self.n_cell, self._data_num()), dtype=np.float64)
@@ -119,7 +131,9 @@ class ResolventMode(ModalData):
     def solve(self, grid_list, save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
+        n_roop = len(grid_list) / self._size
         gain_file = save_dir + '/gains.dat'
+
         for i_grid, (omega, alpha) in enumerate(grid_list):
             print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha) + '.')
 
@@ -137,6 +151,19 @@ class ResolventMode(ModalData):
             save_name = save_dir + '/modes_{:0=5}'.format(i_grid)
             self.save_data(save_name + '.pickle')
             self.vis_tecplot(save_name + '.dat')
+
+    def _make_grid_queue(self, grid_list):
+        i_end = 0
+        n_row = int(len(grid_list) / self._size)
+        for i_row in range(n_row):
+            i_start = self._size * i_row
+            i_end = self._size * (i_row + 1)
+            yield grid_list[i_start:i_end]
+
+        last_data = grid_list[i_end:]
+        if not len(last_data) == 0:
+            n_lack = self._size - len(last_data)
+            yield last_data + [None for _ in range(n_lack)]
 
     def _data_num(self):
         if self._mode == 'Both':
@@ -251,7 +278,7 @@ class RandomizedResolventMode(ResolventMode):
         matB = linalg.spsolve(resolvent.T.conj(), matQ)
         _, _, V = sp.linalg.svd(matB.T.conj(), full_matrices=False)
         matUS = linalg.spsolve(resolvent, V.T.conj())
-        U, Sigma, Vapp = sp.linalg.svd(matUS, full_matrices=False)
+        U, Sigma, Vapp = sp.linalg.svd(matUS.conj(), full_matrices=False)
         V = V.T.conj() @ Vapp.T.conj()
 
         # print('Singular values: ', Sigma)

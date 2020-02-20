@@ -10,8 +10,7 @@ from Functions.Variables import Variables
 class Gradient(Variables):
     def __init__(self, mesh, is2d=False):
         super(Gradient, self).__init__(mesh, n_return=3)
-        self.is2d = is2d
-        self.bd_cond = BDcond(mesh)
+        self.bd_cond = BDcond(mesh, is2d)
         # self.axis = axis
 
         # self._val_vec = np.empty(5, dtype=np.float64)
@@ -50,14 +49,17 @@ class Gradient(Variables):
         return mat_cell
 
     def _get_pos_diff(self, id_cell, nb_cell, nb_face):
-        flip = -1.0 + 2.0 * float(nb_cell - id_cell > 0 or nb_cell < 0)
+        flip = -1.0 + 2.0 * float(nb_cell > id_cell or nb_cell < 0)
         return self.mesh.vec_lr[nb_face] * flip
 
     def _set_rhs(self, data, id_cell, id_val):
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
 
-        val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
+        # val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
+        val_vec = np.zeros(data.shape[1], dtype=np.float64)
+        for i_val in range(data.shape[1]):
+            val_vec[i_val] = data[id_cell, i_val]
 
         rhs_vec = np.zeros(3, dtype=np.float64)
         for id_nb, id_face in zip(nb_cells, faces):
@@ -70,10 +72,5 @@ class Gradient(Variables):
         if id_k >= 0:  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
         else:  # For boundary cells
-            boundary = self.mesh.get_bd_tuple(id_k_face)
-            bd_type = boundary.type
-            if self.is2d and bd_type == self.bd_cond.empty:
-                return 0.0  # Wrong?
-            else:
-                val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
-                return val_bd[id_val] - vec_0[id_val]
+            val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)
+            return val_bd[id_val] - vec_0[id_val]

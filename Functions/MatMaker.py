@@ -6,6 +6,8 @@ from scipy import sparse
 from scipy.sparse import lil_matrix, csc_matrix
 
 from Functions.Variables import Variables
+
+
 # from Functions.Identity import Identity
 
 
@@ -112,6 +114,8 @@ class PlaceHolder:
         self.n_val = n_val
         self.shape = (self.n_cell, self.n_val)
 
+        self._val_vec = None
+
         self.i_cell = -1
         self.i_val = -1
 
@@ -125,27 +129,36 @@ class PlaceHolder:
         self.i_cell = i_cell
         self.i_val = i_val
 
+        self._val_vec = np.zeros(self.n_val)
+        self._val_vec[i_val] = 1.0
+        self._val_vec[5] = self._calc_pressure(i_cell)
+        self._val_vec[6] = self._calc_energy(i_cell)
+
     def __getitem__(self, x):
         i_cell = x[0]
         i_val = x[1]
+        if i_cell == self.i_cell:
+            return self._val_vec[i_val]
+        else:
+            return 0.0
 
         # Converting [rho', u', v', w', T'] -> [rho', u', v', w', T', p', e']
         # if 0 <= i_val < 5:
-        if 0 <= i_val <= 4:
-            # for Rho, u vel, v vel, w vel, T
-            # OR for rho, RhoU, RhoV, RhoW, E
-            return float(i_cell == self.i_cell and i_val == self.i_val)
-        elif i_val == 5:
-            return self._calc_pressure(i_cell)
-        elif i_val == 6:
-            # for energy
-            return self._calc_energy(i_cell)
+        # if 0 <= i_val <= 4:
+        # for Rho, u vel, v vel, w vel, T
+        # OR for rho, RhoU, RhoV, RhoW, E
+        # return float(i_cell == self.i_cell and i_val == self.i_val)
+        # elif i_val == 5:
+        #     return self._calc_pressure(i_cell)
         # elif i_val == 6:
-            # for temperature
-            # return self._calc_temperature(i_cell)
-            # return float(i_cell == self.i_cell and self.i_val == 4)
-        else:
-            raise Exception
+        # for energy
+        # return self._calc_energy(i_cell)
+        # elif i_val == 6:
+        # for temperature
+        # return self._calc_temperature(i_cell)
+        # return float(i_cell == self.i_cell and self.i_val == 4)
+        # else:
+        #     raise Exception
 
     def _calc_energy(self, i_cell):
         # for energy variation
@@ -187,15 +200,15 @@ class PlaceHolder:
 
     # def _calc_temperature(self, i_cell):
     #     for temperature variation
-        # g1 = self._gamma
-        #
-        # rho = self[i_cell, 0]
-        # p = self[i_cell, 4]
-        #
-        # ave = self._ave_field.data
-        # rho_ave = ave[i_cell, 0]
-        # p_ave = ave[i_cell, 4]
-        #
-        # t = g1 * p / rho_ave
-        # t += g1 * p_ave * rho / (rho_ave * rho_ave)
-        # return t
+    # g1 = self._gamma
+    #
+    # rho = self[i_cell, 0]
+    # p = self[i_cell, 4]
+    #
+    # ave = self._ave_field.data
+    # rho_ave = ave[i_cell, 0]
+    # p_ave = ave[i_cell, 4]
+    #
+    # t = g1 * p / rho_ave
+    # t += g1 * p_ave * rho / (rho_ave * rho_ave)
+    # return t

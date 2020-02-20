@@ -20,7 +20,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.n_val = ave_field.n_val
 
         self.mesh = mesh
-        self.bd_cond = BDcond(mesh)
+        self.bd_cond = BDcond(mesh, is2d)
         # self._vol_weight = mesh.volumes / np.sum(mesh.volumes)
 
         self._grad = Gradient(mesh, is2d=is2d)
@@ -32,8 +32,8 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.ave_data = ave_field.data
         self._grad_ave = self._grad_ave_field()
 
-        self._ref_cells = [0]
-        self._grad_refs = {}
+        # self._ref_cells = [0]
+        self._grad_refs = self._GradData(self._grad)
 
     def _return_ref_cells(self, id_cell):
         cell_list = [id_cell] + self.mesh.cell_neighbours(id_cell)
@@ -46,8 +46,9 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
     def formula(self, data, id_cell, **kwargs):
         self._data = data
-        self._ref_cells = self._return_ref_cells(id_cell)
-        self._grad_data()
+        # self._ref_cells = self._return_ref_cells(id_cell)
+        # self._grad_data()
+        self._grad_refs.set_grad(data, self._return_ref_cells(id_cell))
 
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
@@ -61,17 +62,41 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             rhs_vec += self._calc_viscous_flux(id_cell, nb_cell, nb_face) * area * flip
         return self._conv2prime(rhs_vec, id_cell) / self.mesh.volumes[id_cell]
 
-    def _grad_data(self):
-        def grad(id_cell):
-            grad_data = np.zeros((self.n_val, 3), dtype=np.float64)
-            for i_val in range(5):
-                grad_data[i_val] = self._grad.formula(self._data, id_cell, i_val)
-            return grad_data
-        self._grad_refs = {i_cell: grad(i_cell) for i_cell in self._ref_cells}
+    # def _grad_data(self):
+    #     def grad(id_cell):
+    #         grad_data = np.zeros((self.n_val, 3), dtype=np.float64)
+    #         for i_val in range(5):
+    #             grad_data[i_val] = self._grad.formula(self._data, id_cell, i_val)
+    #         return grad_data
+    #     self._grad_refs = {i_cell: grad(i_cell) for i_cell in self._ref_cells}
+
+    class _GradData:
+        def __init__(self, grad):
+            self.n_data = 7
+            self.data = None
+            self.ref_cells = None
+            self.grad_refs = None
+
+            self.grad_list = [1, 2, 3, 4]  # u-vel, v-vel, w-vel, T
+            self.grad = grad
+
+        def set_grad(self, data, ref_cells):
+            self.data = data
+            self.ref_cells = ref_cells
+
+            def grad(i_cell):
+                grad_array = np.zeros((self.n_data, 3), dtype=np.float64)
+                for i_val in self.grad_list:
+                    grad_array[i_val] = self.grad.formula(self.data, i_cell, i_val)
+                return grad_array
+            self.grad_refs = [grad(id_cell) for id_cell in ref_cells]
+
+        def __getitem__(self, i_cell):
+            return self.grad_refs[self.ref_cells.index(i_cell)]
 
     def _grad_ave_field(self):
         grad_ave = np.zeros((self.n_cell, self.n_val, 3), dtype=np.float64)
-        for i_cell, i_val in product(range(self.n_cell), range(5)):
+        for i_cell, i_val in product(range(self.n_cell), range(self.n_val)):
             grad_ave[i_cell, i_val] = self._grad.formula(self.ave_data, i_cell, i_val)
         return grad_ave
 
@@ -102,12 +127,12 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             return f
 
         vec_0, vec_nb = self._get_cell_vals(self._data, id_cell, nb_cell, nb_face)
-        vec_f = self.mesh.conv_vel(0.5 * (vec_0 + vec_nb), nb_face)
+        vec_f = self.mesh.g2l_vel(0.5 * (vec_0 + vec_nb), nb_face)
 
         ave_0, ave_nb = self._get_cell_vals(self.ave_data, id_cell, nb_cell, nb_face)
-        ave_f = self.mesh.conv_vel(0.5 * (ave_0 + ave_nb), nb_face)
+        ave_f = self.mesh.g2l_vel(0.5 * (ave_0 + ave_nb), nb_face)
 
-        return self.mesh.conv_vel(flux(vec_f, ave_f), nb_face, inverse=True)
+        return self.mesh.l2g_vel(flux(vec_f, ave_f), nb_face)
 
     def _calc_viscous_flux(self, id_cell, nb_cell, nb_face):
         flux = np.zeros(5, dtype=np.float64)
@@ -270,8 +295,9 @@ class LNS2(LNS):  # Linearized Navier-Stokes equations. Based on Knoll and Keyes
         con_data[data.i_cell, data.i_val] += eps
         self._data = self._conv2prime(con_data)
 
-        self._ref_cells = self._return_ref_cells(id_cell)
-        self._grad_data()
+        # self._ref_cells = self._return_ref_cells(id_cell)
+        # self._GradData()
+        self._grad_refs.set_grad(data, self._return_ref_cells(id_cell))
 
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
@@ -332,9 +358,9 @@ class LNS2(LNS):  # Linearized Navier-Stokes equations. Based on Knoll and Keyes
             return f
 
         vec_0, vec_nb = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
-        vec_f = self.mesh.conv_vel(0.5 * (vec_0 + vec_nb), nb_face)
+        vec_f = self.mesh.g2l_vel(0.5 * (vec_0 + vec_nb), nb_face)
 
-        return self.mesh.conv_vel(flux(vec_f), nb_face, inverse=True)
+        return self.mesh.l2g_vel(flux(vec_f), nb_face)
 
     def _rhs_viscous(self, data, grad_data, id_cell, nb_cell, nb_face):
         flux = np.zeros(5, dtype=np.float64)

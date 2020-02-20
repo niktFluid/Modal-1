@@ -44,7 +44,7 @@ def MakeOperator(case_dir, time, filename, mu, pr):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean', add_e=True, add_pres=True)
 
-    linear_ns = LNS(mesh, ave_field, mu=mu, pr=pr)  # viscosity and Prandtl number
+    linear_ns = LNS(mesh, ave_field, mu=mu, pr=pr, is2d=True)  # viscosity and Prandtl number
 
     mat_maker = MatMaker(linear_ns, mesh.n_cell, ave_field=ave_field, mpi_comm=comm)
     mat_maker.make_mat()
@@ -70,4 +70,5 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--profile', default='Default', help='Profile for the parameters.')
     args = parser.parse_args()
 
-    main(args.filename, args.profile)
+    # main(args.filename, args.profile)
+    main('/mnt/data2/ModalAnalysis/CylinderNoise/MatParameter.dat', 'mat-gen_cylinder-28')

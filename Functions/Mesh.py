@@ -3,6 +3,8 @@ import numpy as np
 import Ofpp
 from collections import namedtuple
 
+# from numba import jit
+
 
 class Mesh:
     def __init__(self):
@@ -60,17 +62,17 @@ class Mesh:
                 return bd_data
         return None
 
-    def conv_vel(self, val_vec, id_face, inverse=False):
-        if inverse:
-            face_mat = self.face_mat[id_face].T
-        else:
-            face_mat = self.face_mat[id_face]
+    def g2l_vel(self, val_vec, id_face):
+        # Convert velocity Global -> Local
+        face_mat = self.face_mat[id_face]
+        val_vec[1:4] = face_mat @ val_vec[1:4]
+        return val_vec
 
-        u_vel = val_vec[1:4]
-        vec_loc = np.copy(val_vec)
-
-        vec_loc[1:4] = face_mat @ u_vel
-        return vec_loc
+    def l2g_vel(self, val_vec, id_face):
+        # Convert velocity Local -> Global
+        face_mat = self.face_mat[id_face].T
+        val_vec[1:4] = face_mat @ val_vec[1:4]
+        return val_vec
 
 
 class OfMesh(Mesh):

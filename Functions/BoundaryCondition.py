@@ -2,8 +2,9 @@ import numpy as np
 
 
 class BoundaryCondition:
-    def __init__(self, mesh):
+    def __init__(self, mesh, is2d=False):
         self.mesh = mesh
+        self.is2d = is2d
 
         self.wall = 'wall'
         self.patch = 'patch'
@@ -13,11 +14,15 @@ class BoundaryCondition:
         bd_data = self.mesh.get_bd_tuple(id_face)
         bd_type = bd_data.type
 
-        vec_loc = self.mesh.conv_vel(val_vec, id_face)
-        bd_func = self._select_bd_func(bd_type)
-        bd_vec_loc = bd_func(vec_loc, id_face)
+        if self.is2d and bd_type == self.empty:
+            val_vec[3] *= -1.0
+            return val_vec
+        else:
+            vec_loc = self.mesh.g2l_vel(val_vec, id_face)
+            bd_func = self._select_bd_func(bd_type)
+            bd_vec_loc = bd_func(vec_loc, id_face)
 
-        return self.mesh.conv_vel(bd_vec_loc, id_face, inverse=True)
+            return self.mesh.l2g_vel(bd_vec_loc, id_face)
 
     def _select_bd_func(self, bd_type):
         if bd_type == self.wall:
@@ -48,7 +53,7 @@ class BoundaryCondition:
         else:
             vel = np.zeros(5, dtype=np.float64)
             vel[1:4] = vel_wall_g
-            vel_loc = self.mesh.conv_vel(vel, id_face)
+            vel_loc = self.mesh.g2l_vel(vel, id_face)
             vel_wall = vel_loc[1:4]
 
         val_vec[1:4] = 2.0 * vel_wall - val_vec[1:4]
