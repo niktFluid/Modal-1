@@ -70,5 +70,5 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--profile', default='Default', help='Profile for the parameters.')
     args = parser.parse_args()
 
-    # main(args.filename, args.profile)
-    main('/mnt/data2/ModalAnalysis/CylinderNoise/MatParameter.dat', 'mat-gen_cylinder-28')
+    main(args.filename, args.profile)
+    # main('/mnt/data2/ModalAnalysis/CylinderNoise/MatParameter.dat', 'mat-gen_cylinder-28')

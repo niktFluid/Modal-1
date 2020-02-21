@@ -56,10 +56,10 @@ class Gradient(Variables):
         nb_cells = self.mesh.cell_neighbours(id_cell)
         faces = self.mesh.cell_faces[id_cell]
 
-        # val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
-        val_vec = np.zeros(data.shape[1], dtype=np.float64)
-        for i_val in range(data.shape[1]):
-            val_vec[i_val] = data[id_cell, i_val]
+        val_vec = np.array([data[id_cell, i_val] for i_val in range(data.shape[1])])
+        # val_vec = np.zeros(data.shape[1], dtype=np.float64)
+        # for i_val in range(data.shape[1]):
+        #     val_vec[i_val] = data[id_cell, i_val]
 
         rhs_vec = np.zeros(3, dtype=np.float64)
         for id_nb, id_face in zip(nb_cells, faces):

@@ -153,17 +153,14 @@ class ResolventMode(ModalData):
             self.vis_tecplot(save_name + '.dat')
 
     def _make_grid_queue(self, grid_list):
-        i_end = 0
-        n_row = int(len(grid_list) / self._size)
-        for i_row in range(n_row):
-            i_start = self._size * i_row
-            i_end = self._size * (i_row + 1)
-            yield grid_list[i_start:i_end]
+        i_step = self._size
+        i_ind = self._rank % self._size - i_step
 
-        last_data = grid_list[i_end:]
-        if not len(last_data) == 0:
-            n_lack = self._size - len(last_data)
-            yield last_data + [None for _ in range(n_lack)]
+        while i_ind < len(grid_list) - i_step:
+            i_ind += i_step
+            yield grid_list[i_ind]
+        while True:
+            yield None
 
     def _data_num(self):
         if self._mode == 'Both':

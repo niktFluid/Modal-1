@@ -20,7 +20,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         self.n_val = ave_field.n_val
 
         self.mesh = mesh
-        self.bd_cond = BDcond(mesh, is2d)
+        self.bd_cond = BDcond(mesh, is2d=is2d)
         # self._vol_weight = mesh.volumes / np.sum(mesh.volumes)
 
         self._grad = Gradient(mesh, is2d=is2d)

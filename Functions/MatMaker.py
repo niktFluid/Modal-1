@@ -82,7 +82,7 @@ class MatMaker:
                     yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
 
     def _print_progress(self, id_cell, t_start):
-        interval = 10
+        interval = 1
         prog_1 = int(100.0 * id_cell / self.n_cell)
         prog_0 = int(100.0 * (id_cell - self._size) / self.n_cell)
 
@@ -200,15 +200,15 @@ class PlaceHolder:
 
     # def _calc_temperature(self, i_cell):
     #     for temperature variation
-    # g1 = self._gamma
-    #
-    # rho = self[i_cell, 0]
-    # p = self[i_cell, 4]
-    #
-    # ave = self._ave_field.data
-    # rho_ave = ave[i_cell, 0]
-    # p_ave = ave[i_cell, 4]
-    #
-    # t = g1 * p / rho_ave
-    # t += g1 * p_ave * rho / (rho_ave * rho_ave)
-    # return t
+        # g1 = self._gamma
+        #
+        # rho = self[i_cell, 0]
+        # p = self[i_cell, 4]
+        #
+        # ave = self._ave_field.data
+        # rho_ave = ave[i_cell, 0]
+        # p_ave = ave[i_cell, 4]
+        #
+        # t = g1 * p / rho_ave
+        # t += g1 * p_ave * rho / (rho_ave * rho_ave)
+        # return t
