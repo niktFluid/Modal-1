@@ -171,8 +171,18 @@ class ResolventMode(ModalData):
                             gain = w_list[3:]
                             print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha))
                             print('Gains: ', gain)
+                    stop_operation = False
                 else:
                     print('Done resolvent operations.')
+                    stop_operation = True
+            else:
+                stop_operation = None
+
+            stop_operation = self._comm.bcast(stop_operation, root=0)
+            if stop_operation:
+                break
+            else:
+                continue
 
     def _grid_queue(self, grid_list):
         i_step = self._size
