@@ -1,5 +1,6 @@
 import os
 import errno
+from mpi4py import MPI
 
 import argparse
 import configparser
@@ -15,6 +16,9 @@ from Functions.ModalAnalysis import RandomizedResolventMode as RandomizedResolve
 
 
 def main(param_file='Parameter.dat', profile='Default'):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
     if not os.path.exists(param_file):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), param_file)
 
@@ -22,9 +26,10 @@ def main(param_file='Parameter.dat', profile='Default'):
     profiles.read(param_file, encoding='utf-8')
     params = profiles[profile]
 
-    print('Calculation start.\nParameters:')
-    for key, value in params.items():
-        print(key + ' = ' + value)
+    if rank == 0:
+        print('Calculation start.\nParameters:')
+        for key, value in params.items():
+            print(key + ' = ' + value)
 
     # Set up
     mode = params['Mode']
@@ -55,7 +60,8 @@ def main(param_file='Parameter.dat', profile='Default'):
         n_alpha = int(params['AlphaNum'])
         alpha = (s_alpha, e_alpha, n_alpha)
 
-        CalcResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
+        CalcResolvent(case_dir, time_dir, operator, save_name,
+                      k=k, omega=omega, alpha=alpha, mode=r_mode, mpi_comm=comm)
 
     elif mode == 'RandomizedResolvent':
         r_mode = params['ResolventMode']
@@ -70,7 +76,8 @@ def main(param_file='Parameter.dat', profile='Default'):
         n_alpha = int(params['AlphaNum'])
         alpha = (s_alpha, e_alpha, n_alpha)
 
-        CalcRandomizedResolvent(case_dir, time_dir, operator, save_name, k=k, omega=omega, alpha=alpha, mode=r_mode)
+        CalcRandomizedResolvent(case_dir, time_dir, operator, save_name,
+                                k=k, omega=omega, alpha=alpha, mode=r_mode, mpi_comm=comm)
 
     print('Done.')
 
@@ -84,7 +91,7 @@ def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma=None, whi
     ls_mode.vis_tecplot(save_name + '.dat')
 
 
-def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=None, alpha=None, mode='Both'):
+def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=None, alpha=None, mode='Both', mpi_comm=None):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
@@ -99,11 +106,13 @@ def CalcResolvent(case_dir, time, operator_name, save_name, k=3, omega=None, alp
         alpha_array = np.array([alpha])
 
     grid_list = [(o, a) for o, a in product(omega_array, alpha_array)]
-    resolvent_mode = Resolvent(mesh, ave_field, operator_name, k=k, omega=omega, alpha=alpha, mode=mode)
+    resolvent_mode = Resolvent(mesh, ave_field, operator_name,
+                               k=k, omega=omega, alpha=alpha, mode=mode, mpi_comm=mpi_comm)
     resolvent_mode.solve(grid_list, save_name)
 
 
-def CalcRandomizedResolvent(case_dir, time, operator_name, save_name, k=3, omega=None, alpha=None, mode='Both'):
+def CalcRandomizedResolvent(case_dir, time, operator_name, save_name,
+                            k=3, omega=None, alpha=None, mode='Both', mpi_comm=None):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
     ave_field = OfData(mesh, case_dir + time, 'UMean', 'pMean', 'rhoMean')
 
@@ -118,7 +127,7 @@ def CalcRandomizedResolvent(case_dir, time, operator_name, save_name, k=3, omega
         alpha_array = np.array([alpha])
 
     grid_list = [(o, a) for o, a in product(omega_array, alpha_array)]
-    resolvent_mode = RandomizedResolvent(mesh, ave_field, operator_name, k=k, mode=mode)
+    resolvent_mode = RandomizedResolvent(mesh, ave_field, operator_name, k=k, mode=mode, mpi_comm=mpi_comm)
     resolvent_mode.solve(grid_list, save_name)
 
 

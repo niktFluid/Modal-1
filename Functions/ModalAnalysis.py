@@ -114,7 +114,7 @@ class LinearStabilityMode(ModalData):
 
 
 class ResolventMode(ModalData):
-    def __init__(self, mesh, ave_field, operator, n_val=5, k=6, mode=None, **kwargs):
+    def __init__(self, mesh, ave_field, operator, n_val=5, k=6, mode=None, mpi_comm=None, **kwargs):
         self._ave_field = ave_field
 
         self._mode = mode  # 'F' for the forcing mode or 'R' for the response mode. 'None' will get both.
@@ -125,42 +125,65 @@ class ResolventMode(ModalData):
         self._qo = None
         self._resolvent = None
 
-        super(ResolventMode, self).__init__(mesh, operator, n_val, k, **kwargs)
+        super(ResolventMode, self).__init__(mesh, operator, n_val, k, mpi_comm, **kwargs)
         self._arpack_options.update(sigma=0.0, which='LM', **kwargs)
 
     def solve(self, grid_list, save_dir):
         os.makedirs(save_dir, exist_ok=True)
-
-        n_roop = len(grid_list) / self._size
         gain_file = save_dir + '/gains.dat'
 
-        for i_grid, (omega, alpha) in enumerate(grid_list):
-            print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha) + '.')
+        f = open(gain_file, 'w', encoding='utf-8')
+        f.close()
 
-            resolvent = self._make_resolvent(omega, alpha)
-            gain, mode_r, mode_f = self._calculate(resolvent)
+        if self._is_root:
+            print('Start resolvent operations.')
 
-            with open(gain_file, mode='a') as f_obj:
+        for i_grid, grid in self._grid_queue(grid_list):
+            if grid is not None:
+                omega, alpha = grid
+
+                resolvent = self._make_resolvent(omega, alpha)
+                gain, mode_r, mode_f = self._calculate(resolvent)
+
+                self._vec_data = (omega, alpha, gain, mode_r, mode_f)
+                self._set_data(self._vec_data)
+
+                save_name = save_dir + '/modes_{:0=5}'.format(i_grid)
+                self.save_data(save_name + '.pickle')
+                self.vis_tecplot(save_name + '.dat')
+
                 w_list = [i_grid, omega, alpha] + list(gain)
-                f_obj.writelines(list(map(lambda x: str(x) + ' ', w_list)) + ['\n'])
-            print('Gains: ', gain)
+            else:
+                w_list = None
 
-            self._vec_data = (omega, alpha, gain, mode_r, mode_f)
-            self._set_data(self._vec_data)
+            gains_list = self._comm.gather(w_list, root=0)
+            if self._is_root:
+                if not all(item is None for item in gains_list):
+                    data_list = [item for item in gains_list if item is not None]
+                    data_list.sort()
 
-            save_name = save_dir + '/modes_{:0=5}'.format(i_grid)
-            self.save_data(save_name + '.pickle')
-            self.vis_tecplot(save_name + '.dat')
+                    with open(gain_file, mode='a') as f_obj:
+                        for w_list in data_list:
+                            f_obj.writelines(list(map(lambda x: str(x) + ' ', w_list)) + ['\n'])
 
-    def _make_grid_queue(self, grid_list):
+                            omega = w_list[1]
+                            alpha = w_list[2]
+                            gain = w_list[3:]
+                            print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha))
+                            print('Gains: ', gain)
+                else:
+                    print('Done resolvent operations.')
+
+    def _grid_queue(self, grid_list):
         i_step = self._size
-        i_ind = self._rank % self._size - i_step
+        i_ind = self._rank % self._size
 
-        while i_ind < len(grid_list) - i_step:
+        while i_ind < len(grid_list):
+            yield i_ind, grid_list[i_ind]
             i_ind += i_step
-            yield grid_list[i_ind]
+
         while True:
-            yield None
+            yield None, None
 
     def _data_num(self):
         if self._mode == 'Both':
