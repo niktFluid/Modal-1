@@ -41,11 +41,19 @@ def main(param_file='Parameter.dat', profile='Default'):
 
     if mode == 'Stability':
         which = params['Which']
-        sigma = params.get('Sigma')
-        if sigma is not None:
-            sigma = complex(''.join(sigma.split()))
 
-        CalcStability(case_dir, time_dir, operator, save_name, k=k, sigma=sigma, which=which)
+        s_real = float(params['SigmaRealStart'])
+        e_real = float(params['SigmaRealEnd'])
+        n_real = int(params['SigmaRealNum'])
+        sigma_real = (s_real, e_real, n_real)
+
+        s_imag = float(params['SigmaImagStart'])
+        e_imag = float(params['SigmaImagEnd'])
+        n_imag = int(params['SigmaImagNum'])
+        sigma_imag = (s_imag, e_imag, n_imag)
+
+        CalcStability(case_dir, time_dir, operator, save_name,
+                      k=k, sigma_real=sigma_real, sigma_imag=sigma_imag, which=which)
 
     elif mode == 'Resolvent':
         r_mode = params['ResolventMode']
@@ -79,14 +87,26 @@ def main(param_file='Parameter.dat', profile='Default'):
         CalcRandomizedResolvent(case_dir, time_dir, operator, save_name,
                                 k=k, omega=omega, alpha=alpha, mode=r_mode, mpi_comm=comm)
 
-    print('Done.')
+    if rank == 0:
+        print('Done.')
 
 
-def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma=None, which='LM'):
+def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma_real=None, sigma_imag=None, which='LM'):
     mesh = OfMesh(case_dir, time + 'C', time + 'V', time + 'U', time + 'p')
 
-    ls_mode = LSMode(mesh, operator_name, k=k, sigma=sigma, which=which)
-    ls_mode.solve()
+    if isinstance(sigma_real, tuple):
+        s_real_array = np.linspace(*sigma_real)
+    else:
+        s_real_array = np.array([sigma_real])
+
+    if isinstance(sigma_imag, tuple):
+        s_imag_array = np.linspace(*sigma_imag)
+    else:
+        s_imag_array = np.array([sigma_imag])
+
+    grid_list = [(r, i) for r, i in product(s_real_array, s_imag_array)]
+    ls_mode = LSMode(mesh, operator_name, n_grid=len(grid_list), k=k, which=which)
+    ls_mode.solve(grid_list)
     ls_mode.save_data(save_name + '.pickle')
     ls_mode.vis_tecplot(save_name + '.dat')
 

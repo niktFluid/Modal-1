@@ -52,12 +52,14 @@ class MatMaker:
         i_start = self._rank % self._size
         i_step = self._size
 
-        val_array = np.empty((0, 5), dtype=np.float64)
+        val_list = []
+        # val_array = np.empty((0, 5), dtype=np.float64)
         for id_cell in range(i_start, self.n_cell, i_step):
             for val in self._calc_values(id_cell):
-                val_array = np.append(val_array, val.reshape(1, 5), axis=0)
+                val_list.append(val)
             if self._is_root:
                 self._print_progress(id_cell, t_start)
+        val_array = np.array(val_list)
 
         if self._is_root:
             t_end = time.time() - t_start
@@ -82,7 +84,7 @@ class MatMaker:
                     yield np.array([id_cell, id_val, ref_cell, ref_val, val], dtype=np.float64)
 
     def _print_progress(self, id_cell, t_start):
-        interval = 1
+        interval = 10
         prog_1 = int(100.0 * id_cell / self.n_cell)
         prog_0 = int(100.0 * (id_cell - self._size) / self.n_cell)
 
