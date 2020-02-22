@@ -72,19 +72,39 @@ class ModalData(FieldData):
 
 
 class LinearStabilityMode(ModalData):
-    def __init__(self, mesh, operator, n_val=5, k=10, **kwargs):
+    def __init__(self, mesh, operator, n_val=5, k=5, n_grid=10, **kwargs):
+        self._n_grid = n_grid
+
         super(LinearStabilityMode, self).__init__(mesh, operator, n_val, k, **kwargs)
         self._arpack_options.update(**kwargs)
 
     def _data_num(self):
-        return self._n_q * self._k
+        return self._n_q * self._k * self._n_grid
 
     def _data_name_list(self):
         data_list_base = ['rho', 'u', 'v', 'w', 'T']
         data_list = []
-        for i_mode in range(self._k):
+        for i_mode in range(self._k * self._n_grid):
             data_list += ['mode{:0=4}_'.format(i_mode) + x for x in data_list_base]
         return data_list
+
+    def solve(self, grid_list):
+        if len(grid_list) != self._n_grid:
+            raise Exception
+
+        eig_list = []
+        vec_list = []
+        for i_grid, (s_real, s_imag) in enumerate(grid_list):
+            sigma = s_real + 1.0j * s_imag
+            self._arpack_options.update({'sigma': sigma})
+            print('Sigma =', sigma)
+
+            eigs, vecs = self._calculate()
+            vec_list.append(vecs)
+            eig_list.append(eigs)
+
+        self._vec_data = (np.hstack(eig_list), np.hstack(vec_list))
+        self._set_data(self._vec_data)
 
     def _set_operator(self, operator, **kwargs):
         return operator
@@ -171,6 +191,7 @@ class ResolventMode(ModalData):
                             gain = w_list[3:]
                             print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha))
                             print('Gains: ', gain)
+
                     stop_operation = False
                 else:
                     print('Done resolvent operations.')
