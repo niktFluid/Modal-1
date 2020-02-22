@@ -176,7 +176,11 @@ class ResolventMode(ModalData):
             else:
                 w_list = None
 
-            gains_list = self._comm.gather(w_list, root=0)
+            if self._mpi:
+                gains_list = self._comm.gather(w_list, root=0)
+            else:
+                gains_list = [w_list]
+
             if self._is_root:
                 if not all(item is None for item in gains_list):
                     data_list = [item for item in gains_list if item is not None]
@@ -199,7 +203,9 @@ class ResolventMode(ModalData):
             else:
                 stop_operation = None
 
-            stop_operation = self._comm.bcast(stop_operation, root=0)
+            if self._mpi:
+                stop_operation = self._comm.bcast(stop_operation, root=0)
+
             if stop_operation:
                 break
             else:
