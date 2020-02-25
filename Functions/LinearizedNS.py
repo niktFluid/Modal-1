@@ -40,10 +40,6 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         ref_cells = [i_cell for i_cell in cell_list if i_cell >= 0]
         return list(set(ref_cells))
 
-    @staticmethod
-    def _get_face_direction(id_cell, nb_cell):
-        return -1.0 + 2.0 * float(nb_cell > id_cell or nb_cell < 0)
-
     def formula(self, data, id_cell, **kwargs):
         self._data = data
         # self._ref_cells = self._return_ref_cells(id_cell)
@@ -56,7 +52,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
 
         for nb_cell, nb_face in zip(nb_cells, faces):
             area = self.mesh.face_area[nb_face]
-            flip = self._get_face_direction(id_cell, nb_cell)
+            flip = self.mesh.get_face_direction(id_cell, nb_cell, nb_face)
 
             rhs_vec -= self._calc_inviscid_flux(id_cell, nb_cell, nb_face) * area * flip
             rhs_vec += self._calc_viscous_flux(id_cell, nb_cell, nb_face) * area * flip
@@ -205,7 +201,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
             return val_vec
 
         val_vec_0 = get_vals(id_cell)
-        if nb_cell >= 0:  # For inner cells
+        if not self.mesh.is_boundary_face(nb_face):  # For inner cells
             val_vec_nb = get_vals(nb_cell)
         else:  # For boundary cells
             val_vec_nb = self.bd_cond.get_bd_val(val_vec_0, nb_face)
@@ -230,7 +226,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
     def _get_face_grad(self, data, grad_data, id_cell, nb_cell, nb_face):
         grad_id = grad_data[id_cell]
         vol_id = self.mesh.volumes[id_cell]
-        if nb_cell >= 0:  # For inner faces
+        if not self.mesh.is_boundary_face(nb_face):  # For inner faces
             grad_nb = grad_data[nb_cell]
             vol_nb = self.mesh.volumes[nb_cell]
             grad_face = (grad_id * vol_nb + grad_nb * vol_id) / (vol_id + vol_nb)
@@ -240,7 +236,7 @@ class LNS(Variables):  # Linearized Navier-Stokes equations
         # grad_face = 0.5 * (grad_id + grad_nb)
 
         # For prevent even-odd instability.
-        flip = self._get_face_direction(id_cell, nb_cell)
+        flip = self.mesh.get_face_direction(id_cell, nb_cell, nb_face)
         vec_lr = self.mesh.vec_lr[nb_face]
         inv_lr = 1.0 / math.sqrt(vec_lr[0]*vec_lr[0] + vec_lr[1]*vec_lr[1] + vec_lr[2]*vec_lr[2])
         vec_a, vec_b = self._get_cell_vals(data, id_cell, nb_cell, nb_face)
@@ -306,7 +302,7 @@ class LNS2(LNS):  # Linearized Navier-Stokes equations. Based on Knoll and Keyes
 
         for nb_cell, nb_face in zip(nb_cells, faces):
             area = self.mesh.face_area[nb_face]
-            flip = self._get_face_direction(id_cell, nb_cell)
+            flip = self.mesh.get_face_direction(id_cell, nb_cell, nb_face)
 
             rhs -= self._rhs_advection(self._data, id_cell, nb_cell, nb_face) * area * flip
             rhs += self._rhs_viscous(self._data, self._grad_refs, id_cell, nb_cell, nb_face) * area * flip
@@ -390,7 +386,7 @@ class NS(LNS2):  # Calculate Right Hand Side term of NS equation.
 
         for nb_cell, nb_face in zip(nb_cells, faces):
             area = self.mesh.face_area[nb_face]
-            flip = self._get_face_direction(id_cell, nb_cell)
+            flip = self.mesh.get_face_direction(id_cell, nb_cell, nb_face)
 
             rhs -= self._rhs_advection(self.ave_data, id_cell, nb_cell, nb_face) * area * flip
             rhs += self._rhs_viscous(self.ave_data, self._grad_ave, id_cell, nb_cell, nb_face) * area * flip

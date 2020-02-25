@@ -52,6 +52,18 @@ class Mesh:
         raise NotImplementedError
 
     def cell_neighbours(self, id_cell):
+        # Return a list of neighbour cell IDs including boundary (ghost) cells.
+        raise NotImplementedError
+
+    def is_boundary_face(self, id_face):
+        # Detect boundary face.
+        raise NotImplementedError
+
+    def get_face_direction(self, id_cell, nb_cell, id_face):
+        # Define the direction of face.
+        # id_cell: ID for the target cell
+        # nb_cell: ID for the neighbour cell
+        # id_face: ID for the face between the target and neighbour cell
         raise NotImplementedError
 
     def get_bd_tuple(self, id_face):
@@ -93,8 +105,23 @@ class OfMesh(Mesh):
 
         super(OfMesh, self).__init__()
 
+        i_bd_face_min = 1e64
+        for bd_data in self.boundary:
+            if bd_data.i_start <= i_bd_face_min:
+                i_bd_face_min = bd_data.i_start
+        self._i_start_bd = i_bd_face_min
+
     def cell_neighbours(self, id_cell):
         return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
+
+    def is_boundary_face(self, id_face):
+        if id_face >= self._i_start_bd:
+            return True
+        else:
+            return False
+
+    def get_face_direction(self, id_cell, nb_cell, id_face):
+        return -1.0 + 2.0 * float(nb_cell > id_cell or self.is_boundary_face(id_face))
 
     def _init_mesh(self):
         mesh = Ofpp.FoamMesh(self.path_dir)

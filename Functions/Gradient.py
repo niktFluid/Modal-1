@@ -69,7 +69,7 @@ class Gradient(Variables):
         return rhs_vec
 
     def _get_val_diff(self, data, vec_0, id_k, id_k_face, id_val):
-        if id_k >= 0:  # For inner cells
+        if not self.mesh.is_boundary_face(id_k_face):  # For inner cells
             return data[id_k, id_val] - vec_0[id_val]
         else:  # For boundary cells
             val_bd = self.bd_cond.get_bd_val(vec_0, id_k_face)

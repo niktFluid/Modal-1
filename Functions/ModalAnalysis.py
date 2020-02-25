@@ -74,7 +74,7 @@ class ModalData(FieldData):
 
 
 class LinearStabilityMode(ModalData):
-    def __init__(self, mesh, operator, n_val=5, k=5, n_grid=10, add_pres=True, **kwargs):
+    def __init__(self, mesh, operator, n_val=5, k=5, n_grid=10, add_pres=False, **kwargs):
         self._n_grid = n_grid
         self._add_pres = add_pres
 
