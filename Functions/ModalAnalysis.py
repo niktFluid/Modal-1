@@ -1,9 +1,11 @@
-from itertools import product
 import os
-import numpy as np
+import time
+from itertools import product
 import pickle
+
+import numpy as np
 import scipy as sp
-from scipy.sparse import linalg
+from scipy.sparse import linalg, csc_matrix
 from scipy import sparse
 
 from Functions.FieldData import FieldData
@@ -158,6 +160,7 @@ class ResolventMode(ModalData):
         if self._is_root:
             print('Start resolvent operations.')
 
+        t_start = time.time()
         for i_grid, grid in self._grid_queue(grid_list):
             if grid is not None:
                 omega, alpha = grid
@@ -195,6 +198,9 @@ class ResolventMode(ModalData):
                             gain = w_list[3:]
                             print('Omega = {:.6f}'.format(omega) + ', Alpha = {:.6f}'.format(alpha))
                             print('Gains: ', gain)
+
+                    t_current = time.time() - t_start
+                    print('Elapsed time: {:.1f} [sec.].'.format(t_current))
 
                     stop_operation = False
                 else:
@@ -326,19 +332,19 @@ class RandomizedResolventMode(ResolventMode):
         return sparse.diags(phi, format='csc')
 
     def _calculate(self, resolvent):
+        resolvent_lu = linalg.splu(resolvent)
         m = self.n_cell * 5  # = resolvent.shape[0]
         k = self._k  # Number of mode
 
         matO = self._scaling @ np.random.normal(0.0, 0.1, (m, k))
-        matY = linalg.spsolve(resolvent, matO)
+        matY = resolvent_lu.solve(matO)
         matQ, _ = sp.linalg.qr(matY, mode='economic')
-        matB = linalg.spsolve(resolvent.T.conj(), matQ)
+        matB = resolvent_lu.solve(matQ, trans='H')
         _, _, V = sp.linalg.svd(matB.T.conj(), full_matrices=False)
-        matUS = linalg.spsolve(resolvent, V.T.conj())
+        matUS = resolvent_lu.solve(V.T.conj())
         U, Sigma, Vapp = sp.linalg.svd(matUS.conj(), full_matrices=False)
         V = V.T.conj() @ Vapp.T.conj()
 
-        # print('Singular values: ', Sigma)
         return Sigma, U, V
 
 

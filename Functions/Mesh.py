@@ -20,8 +20,6 @@ class Mesh:
         self.face_nodes = dummy
         self.cell_faces = dummy
         self.cell_neighbour = dummy
-        self.owner = dummy
-        self.neighbour = dummy
 
         # Cell geometry
         self.centers = dummy
@@ -54,7 +52,7 @@ class Mesh:
         raise NotImplementedError
 
     def cell_neighbours(self, id_cell):
-        return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
+        raise NotImplementedError
 
     def get_bd_tuple(self, id_face):
         for bd_data in self.boundary:
@@ -89,7 +87,14 @@ class OfMesh(Mesh):
         self.path_bd_u = path_bd_u
         self.path_bd_p = path_bd_p
 
+        dummy = np.empty(0)
+        self.owner = dummy
+        self.neighbour = dummy
+
         super(OfMesh, self).__init__()
+
+    def cell_neighbours(self, id_cell):
+        return [self.owner[x] + self.neighbour[x] - id_cell for x in self.cell_faces[id_cell]]
 
     def _init_mesh(self):
         mesh = Ofpp.FoamMesh(self.path_dir)
