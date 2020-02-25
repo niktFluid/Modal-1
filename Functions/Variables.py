@@ -9,8 +9,15 @@ class Variables:
 
         self.leave_list = None
         self._sub_list = sub_list
+        # if sub_list is not None:
+        #     self._check_sub_list()
 
         self.n_return = n_return
+
+    def _check_sub_list(self):
+        for sub in self._sub_list:
+            if not issubclass(type(sub), type(self)):
+                raise TypeError('"sub_list" must contains only sub classes of "Variables".')
 
     def get_leaves(self, id_cell):
         my_ref_cells = self._return_ref_cells(id_cell)

@@ -32,6 +32,8 @@ class MatMaker:
         self.n_return = self._target.n_return
         self.n_size_out = n_cell * self.n_return
 
+        self._check_target()
+
         self.operator = None
 
         if ave_field is None:
@@ -41,8 +43,8 @@ class MatMaker:
         self._ph = PlaceHolder(n_cell, n_val_ph, ave_field)
 
     def _check_target(self):
-        if not issubclass(self._target, Variables):
-            raise TypeError
+        if not isinstance(self._target, Variables):
+            raise TypeError('"target" of "MatMaker" must be a sub class of "Variables".')
 
     def make_mat(self):
         if self._is_root:
@@ -125,7 +127,7 @@ class PlaceHolder:
 
         if n_val > 5 and ave_field is None:
             # For calculating energy and pressure
-            raise Exception
+            raise Exception('Time averaged field is necessary for computing energy and pressure fluctuations.')
 
     def set_ph(self, i_cell, i_val):
         self.i_cell = i_cell
@@ -143,24 +145,6 @@ class PlaceHolder:
             return self._val_vec[i_val]
         else:
             return 0.0
-
-        # Converting [rho', u', v', w', T'] -> [rho', u', v', w', T', p', e']
-        # if 0 <= i_val < 5:
-        # if 0 <= i_val <= 4:
-        # for Rho, u vel, v vel, w vel, T
-        # OR for rho, RhoU, RhoV, RhoW, E
-        # return float(i_cell == self.i_cell and i_val == self.i_val)
-        # elif i_val == 5:
-        #     return self._calc_pressure(i_cell)
-        # elif i_val == 6:
-        # for energy
-        # return self._calc_energy(i_cell)
-        # elif i_val == 6:
-        # for temperature
-        # return self._calc_temperature(i_cell)
-        # return float(i_cell == self.i_cell and self.i_val == 4)
-        # else:
-        #     raise Exception
 
     def _calc_energy(self, i_cell):
         # for energy variation
