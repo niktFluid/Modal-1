@@ -105,7 +105,7 @@ def CalcStability(case_dir, time, operator_name, save_name, k=3, sigma_real=None
         s_imag_array = np.array([sigma_imag])
 
     grid_list = [(r, i) for r, i in product(s_real_array, s_imag_array)]
-    ls_mode = LSMode(mesh, operator_name, n_grid=len(grid_list), k=k, which=which)
+    ls_mode = LSMode(mesh, operator_name, n_grid=len(grid_list), add_pres=True, k=k, which=which)
     ls_mode.solve(grid_list)
     ls_mode.save_data(save_name + '.pickle')
     ls_mode.vis_tecplot(save_name + '.dat')

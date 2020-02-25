@@ -74,8 +74,12 @@ class ModalData(FieldData):
 
 
 class LinearStabilityMode(ModalData):
-    def __init__(self, mesh, operator, n_val=5, k=5, n_grid=10, **kwargs):
+    def __init__(self, mesh, operator, n_val=5, k=5, n_grid=10, add_pres=True, **kwargs):
         self._n_grid = n_grid
+        self._add_pres = add_pres
+
+        if add_pres:
+            n_val += 1
 
         super(LinearStabilityMode, self).__init__(mesh, operator, n_val, k, **kwargs)
         self._arpack_options.update(**kwargs)
@@ -85,6 +89,10 @@ class LinearStabilityMode(ModalData):
 
     def _data_name_list(self):
         data_list_base = ['rho', 'u', 'v', 'w', 'T']
+
+        if self._add_pres:
+            data_list_base.append('p')
+
         data_list = []
         for i_mode in range(self._k * self._n_grid):
             data_list += ['mode{:0=4}_'.format(i_mode) + x for x in data_list_base]
@@ -121,8 +129,18 @@ class LinearStabilityMode(ModalData):
             i_start = self._n_q * i_mode
             i_end = self._n_q * (i_mode + 1)
 
-            w_vec = vec.reshape((self.n_cell, self._n_q), order='F')
+            if self._add_pres:
+                w_vec = self._calc_pres_mode(vec.reshape((self.n_cell, int(vec.size / self.n_cell)), order='F'))
+            else:
+                w_vec = vec.reshape((self.n_cell, self._n_q), order='F')
+
             self.data[:, i_start:i_end] = np.real(w_vec)
+
+    def _calc_pres_mode(self, data):
+        rho = data[:, 0]
+        t = data[:, 4]
+        p = rho * t / 1.4
+        return np.hstack((data, p.reshape((self.n_cell, 1))))
 
     def save_data(self, filename='modalData.pickle'):
         save_name, _ = os.path.splitext(filename)
